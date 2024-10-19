@@ -248,7 +248,7 @@ ssh from your computer into the machine to be installed:
 - <https://wiki.archlinux.org/title/Installation_guide#Connect_to_the_internet>
 &nbsp;
 
-- `ip link # Ensure your network interface is listed and enabled / UP`
+- `ip link` # Ensure your network interface is listed and enabled / UP
   - Wi-Fi: authenticate to a wireless network using `iwctl`
   - Mobile broadband modem: connect to a mobile network with the `mmcli` utility
 
@@ -308,6 +308,7 @@ t           # change type
 n
 ,,,         # system partition (takes entire rest of the disk)
 t           # change type
+,
 23          # 'Linux root (x86-64)'
 
 p           # print current partition table
@@ -347,7 +348,8 @@ t           # change type
 
 n
 ,, -1M      # system partition # takes entire rest of the disk, excpet 1 MB)
-t,          # change type
+t           # change type
+,
 23          # 'Linux root (x86-64)'
 
 p           # print current partition table
@@ -381,8 +383,6 @@ Device     Start      End  Sectors Size Type
 - <https://wiki.archlinux.org/title/GRUB#Encrypted_/boot>
 - <https://archive.kernel.org/oldwiki/btrfs.wiki.kernel.org/index.php/SysadminGuide.html#Btrfs_on_top_of_dmcrypt>
 
-With this setup, you will be asked twice for password for decrypting (1x Bootloader, 1x cryptroot) when starting your machine.
-
 Encrypting our root partition:
 
 - <https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#Encrypting_devices_with_LUKS_mode>
@@ -412,6 +412,11 @@ NAME                      MAJ:MIN RM   SIZE RO TYPE  MOUNTPOINTS
 └─/dev/vda2               254:2    0    24G  0 part  
   └─/dev/mapper/cryptroot 253:0    0    24G  0 crypt 
 ```
+
+&nbsp;
+
+> :warning:
+> With current setup, when starting your machine you will be asked twice for a password for decrypting: 1x bootloader, 1x cryptroot.
 
 ## Format partitions
 
@@ -497,9 +502,11 @@ Subvolume-ID 5 (top level 5) = btrfsroot ("/")
 ### Mount partition to install the system
 
 - if you enrypted the root partition:
-  - `mount /dev/mapper/cryptroot -o subvolid=256,compress=zstd,noatime /mnt` # Mount the subvolume on which we want to install the system # adjust to your device path
+  - `mount /dev/mapper/cryptroot -o subvol=/@,compress=zstd,noatime /mnt` # Mount the subvolume on which we want to install the system # adjust to your device path
+  - ~~`mount /dev/mapper/cryptroot -o subvolid=256,compress=zstd,noatime /mnt`~~
 - If you did not enrypt root partition:
-  - `mount /dev/vda2 -o subvolid=256,compress=zstd,noatime /mnt` # Mount the subvolume on which we want to install the system # adjust to your device path
+  - `mount /dev/vda2 -o subvolid=/@,compress=zstd,noatime /mnt` # Mount the subvolume on which we want to install the system # adjust to your device path
+  - ~~`mount /dev/vda2 -o subvolid=256,compress=zstd,noatime /mnt`~~
 
 ### Create folders for the subvolumes (mountpoints)
 
@@ -530,25 +537,27 @@ Adjust to your device path.
 >   - `cryptroot` = device mapper name used for enryption / opening enrypted root partition
 
 - home
-  - encryption: `mount /dev/mapper/cryptroot -o subvolid=257,compress=zstd,noatime /mnt/home`
-  - no encryption: `mount /dev/vda2 -o subvolid=257,compress=zstd,noatime /mnt/home`
+  - encryption: `mount /dev/mapper/cryptroot -o subvol=/@home,compress=zstd,noatime /mnt/home`
+  - no encryption: `mount /dev/vda2 -o subvol=/@home,compress=zstd,noatime /mnt/home`
 - log files
-  - encryption: `mount /dev/mapper/cryptroot -o subvolid=258,compress=zstd,noatime /mnt/var/log`
-  - no encryption: `mount /dev/vda2 -o subvolid=258,compress=zstd,noatime /mnt/var/log`
+  - encryption: `mount /dev/mapper/cryptroot -o subvol=/@varlog,compress=zstd,noatime /mnt/var/log`
+  - no encryption: `mount /dev/vda2 -o subvol=/@varlog,compress=zstd,noatime /mnt/var/log`
 - Swap file:
-  - encryption: `mount /dev/mapper/cryptroot -o subvolid=259,compress=zstd,noatime /mnt/swap`
-  - no encryption: `mount /dev/vda2 -o subvolid=259,compress=zstd,noatime /mnt/swap`
+  - encryption: `mount /dev/mapper/cryptroot -o subvol=/@swap,compress=zstd,noatime /mnt/swap`
+  - no encryption: `mount /dev/vda2 -o subvol=/@swap,compress=zstd,noatime /mnt/swap`
   - `btrfs filesystem mkswapfile --size 4g --uuid clear /mnt/swap/swapfile` # Create a 4 GB swap file # currently without Hibernation
   - `swapon /mnt/swap/swapfile` # activate the swap file
 - snapshots
-  - encryption: `mount /dev/mapper/cryptroot -o subvolid=260,compress=zstd,noatime /mnt/.snapshots`
-  - no encryption: `mount /dev/vda2 -o subvolid=260,compress=zstd,noatime /mnt/.snapshots`
-- ... and for all other subvolumes created above
+  - encryption: `mount /dev/mapper/cryptroot -o subvol=/@snapshots,compress=zstd,noatime /mnt/.snapshots`
+  - no encryption: `mount /dev/vda2 -o subvol=/@snapshots,compress=zstd,noatime /mnt/.snapshots`
+- ... and all other subvolumes you may have created
 
 ### Mount btrfsroot for 'snapper-rollback'
 
-- encryption: `mount /dev/mapper/cryptroot -o subvolid=5,compress=zstd,noatime /mnt/.btrfsroot`
-- no encryption: `mount /dev/vda2 -o subvolid=5,compress=zstd,noatime /mnt/.btrfsroot`
+- encryption: `mount /dev/mapper/cryptroot -o subvol=/,compress=zstd,noatime /mnt/.btrfsroot`
+- ~~encryption: `mount /dev/mapper/cryptroot -o subvolid=5,compress=zstd,noatime /mnt/.btrfsroot`~~
+- no encryption: `mount /dev/vda2 -o subvol=/,compress=zstd,noatime /mnt/.btrfsroot`
+- ~~no encryption: `mount /dev/vda2 -o subvolid=5,compress=zstd,noatime /mnt/.btrfsroot`~~
 
 ### Mount options
 
@@ -661,29 +670,46 @@ All packages above together:
 - `genfstab -U /mnt >> /mnt/etc/fstab` # `-U`: use UUIDs
 - `cat /mnt/etc/fstab` # check
 
-> :warning: The UUIDs shown at 'with enryption' or 'without encrypion' would normally match. They are only different because it was a seperate new installation both times with new random UUIDs generated.</span>
+> :warning: You should delete `subvolid=<subvolid>` in the fstab:
+>
+> - <https://bbs.archlinux.org/viewtopic.php?id=299085>
+> - <https://github.com/archlinux/arch-install-scripts/commit/added92801fac6b2aafe0362e0deca00da68ec19>:
+>   - Having only one of subvol= and subvolid= is enough for mounting a btrfs subvolume.
+>   - And having subvolid= set prevents things like 'snapper rollback' to work, as it
+>   - updates the subvolume in-place, leaving subvol= unchanged with a different subvolid.
+> - <https://btrfs.readthedocs.io/en/latest/Administration.html#mount-options>
+>   - `subvolid=<subvolid>`
+>   - If both subvolid and subvol are specified, they must point at the same subvolume, otherwise the mount will fail.
+> - e.g. change:
+>   - `UUID=7986ecc9-7656-4ccc-814f-e58f20e241a5 /          btrfs      rw,noatime,compress=zstd:3,space_cache=v2,`**subvolid=256,**`subvol=/@ 0 0`
+> - to:
+>   - `UUID=7986ecc9-7656-4ccc-814f-e58f20e241a5 /          btrfs      rw,noatime,compress=zstd:3,space_cache=v2,subvol=/@ 0 0`
+> &nbsp;
+>
+> :warning: The UUIDs shown at 'with enryption' or 'without encrypion' would normally match.
+> They are only different because it was a seperate new installation both times with new random UUIDs generated.
 
 #### UEFI/GPT with encryption
 
 ```text
 # <file system> <dir> <type> <options> <dump> <pass>
 # /dev/mapper/cryptroot LABEL=ROOT
-UUID=7986ecc9-7656-4ccc-814f-e58f20e241a5 /          btrfs      rw,noatime,compress=zstd:3,space_cache=v2,subvolid=256,subvol=/@ 0 0
+UUID=7986ecc9-7656-4ccc-814f-e58f20e241a5 /          btrfs      rw,noatime,compress=zstd:3,space_cache=v2,subvol=/@ 0 0
 
 # /dev/vda1 LABEL=EFI
 UUID=4584-08C8       /efi       vfat       rw,relatime,fmask=0022,dmask=0022,codepage=437,iocharset=ascii,shortname=mixed,utf8,errors=remount-ro 0 2
 
 # /dev/mapper/cryptroot LABEL=ROOT
-UUID=7986ecc9-7656-4ccc-814f-e58f20e241a5 /home      btrfs      rw,noatime,compress=zstd:3,space_cache=v2,subvolid=257,subvol=/@home 0 0
+UUID=7986ecc9-7656-4ccc-814f-e58f20e241a5 /home      btrfs      rw,noatime,compress=zstd:3,space_cache=v2,subvol=/@home 0 0
 
 # /dev/mapper/cryptroot LABEL=ROOT
-UUID=7986ecc9-7656-4ccc-814f-e58f20e241a5 /var/log   btrfs      rw,noatime,compress=zstd:3,space_cache=v2,subvolid=258,subvol=/@varlog 0 0
+UUID=7986ecc9-7656-4ccc-814f-e58f20e241a5 /var/log   btrfs      rw,noatime,compress=zstd:3,space_cache=v2,subvol=/@varlog 0 0
 
 # /dev/mapper/cryptroot LABEL=ROOT
-UUID=7986ecc9-7656-4ccc-814f-e58f20e241a5 /swap      btrfs      rw,noatime,compress=zstd:3,space_cache=v2,subvolid=259,subvol=/@swap 0 0
+UUID=7986ecc9-7656-4ccc-814f-e58f20e241a5 /swap      btrfs      rw,noatime,compress=zstd:3,space_cache=v2,subvol=/@swap 0 0
 
 # /dev/mapper/cryptroot LABEL=ROOT
-UUID=7986ecc9-7656-4ccc-814f-e58f20e241a5 /.snapshots btrfs      rw,noatime,compress=zstd:3,space_cache=v2,subvolid=260,subvol=/@snapshots 0 0
+UUID=7986ecc9-7656-4ccc-814f-e58f20e241a5 /.snapshots btrfs      rw,noatime,compress=zstd:3,space_cache=v2,subvol=/@snapshots 0 0
 
 # /dev/mapper/cryptroot LABEL=ROOT
 UUID=7986ecc9-7656-4ccc-814f-e58f20e241a5 /.btrfsroot btrfs      rw,noatime,compress=zstd:3,space_cache=v2,subvolid=5,subvol=/ 0 0
@@ -696,22 +722,22 @@ UUID=7986ecc9-7656-4ccc-814f-e58f20e241a5 /.btrfsroot btrfs      rw,noatime,comp
 ```text
 # <file system> <dir> <type> <options> <dump> <pass>
 # /dev/vda2 LABEL=ROOT
-UUID=a552a029-4972-4b3a-b2cd-21ddb5e2e870 /          btrfs      rw,noatime,compress=zstd:3,discard=async,space_cache=v2,subvolid=256,subvol=/@ 0 0
+UUID=a552a029-4972-4b3a-b2cd-21ddb5e2e870 /          btrfs      rw,noatime,compress=zstd:3,discard=async,space_cache=v2,subvol=/@ 0 0
 
 # /dev/vda1 LABEL=EFI
 UUID=6155-8708       /efi       vfat       rw,relatime,fmask=0022,dmask=0022,codepage=437,iocharset=ascii,shortname=mixed,utf8,errors=remount-ro 0 2
 
 # /dev/vda2 LABEL=ROOT
-UUID=a552a029-4972-4b3a-b2cd-21ddb5e2e870 /home      btrfs      rw,noatime,compress=zstd:3,discard=async,space_cache=v2,subvolid=257,subvol=/@home 0 0
+UUID=a552a029-4972-4b3a-b2cd-21ddb5e2e870 /home      btrfs      rw,noatime,compress=zstd:3,discard=async,space_cache=v2,subvol=/@home 0 0
 
 # /dev/vda2 LABEL=ROOT
-UUID=a552a029-4972-4b3a-b2cd-21ddb5e2e870 /var/log   btrfs      rw,noatime,compress=zstd:3,discard=async,space_cache=v2,subvolid=258,subvol=/@varlog 0 0
+UUID=a552a029-4972-4b3a-b2cd-21ddb5e2e870 /var/log   btrfs      rw,noatime,compress=zstd:3,discard=async,space_cache=v2,subvol=/@varlog 0 0
 
 # /dev/vda2 LABEL=ROOT
-UUID=a552a029-4972-4b3a-b2cd-21ddb5e2e870 /swap      btrfs      rw,noatime,compress=zstd:3,discard=async,space_cache=v2,subvolid=259,subvol=/@swap 0 0
+UUID=a552a029-4972-4b3a-b2cd-21ddb5e2e870 /swap      btrfs      rw,noatime,compress=zstd:3,discard=async,space_cache=v2,subvol=/@swap 0 0
 
 # /dev/vda2 LABEL=ROOT
-UUID=a552a029-4972-4b3a-b2cd-21ddb5e2e870 /.snapshots btrfs      rw,noatime,compress=zstd:3,discard=async,space_cache=v2,subvolid=260,subvol=/@snapshots 0 0
+UUID=a552a029-4972-4b3a-b2cd-21ddb5e2e870 /.snapshots btrfs      rw,noatime,compress=zstd:3,discard=async,space_cache=v2,subvol=/@snapshots 0 0
 
 # /dev/vda2 LABEL=ROOT
 UUID=a552a029-4972-4b3a-b2cd-21ddb5e2e870 /.btrfsroot btrfs      rw,noatime,compress=zstd:3,discard=async,space_cache=v2,subvolid=5,subvol=/ 0 0
@@ -724,19 +750,19 @@ UUID=a552a029-4972-4b3a-b2cd-21ddb5e2e870 /.btrfsroot btrfs      rw,noatime,comp
 ```text
 # <file system> <dir> <type> <options> <dump> <pass>
 # /dev/mapper/cryptroot LABEL=ROOT
-UUID=53791c43-d7ad-48fd-bbc9-8f15451d94f0 /          btrfs      rw,noatime,compress=zstd:3,space_cache=v2,subvolid=256,subvol=/@ 0 0
+UUID=53791c43-d7ad-48fd-bbc9-8f15451d94f0 /          btrfs      rw,noatime,compress=zstd:3,space_cache=v2,subvol=/@ 0 0
 
 # /dev/mapper/cryptroot LABEL=ROOT
-UUID=53791c43-d7ad-48fd-bbc9-8f15451d94f0 /home      btrfs      rw,noatime,compress=zstd:3,space_cache=v2,subvolid=257,subvol=/@home 0 0
+UUID=53791c43-d7ad-48fd-bbc9-8f15451d94f0 /home      btrfs      rw,noatime,compress=zstd:3,space_cache=v2,subvol=/@home 0 0
 
 # /dev/mapper/cryptroot LABEL=ROOT
-UUID=53791c43-d7ad-48fd-bbc9-8f15451d94f0 /var/log   btrfs      rw,noatime,compress=zstd:3,space_cache=v2,subvolid=258,subvol=/@varlog 0 0
+UUID=53791c43-d7ad-48fd-bbc9-8f15451d94f0 /var/log   btrfs      rw,noatime,compress=zstd:3,space_cache=v2,subvol=/@varlog 0 0
 
 # /dev/mapper/cryptroot LABEL=ROOT
-UUID=53791c43-d7ad-48fd-bbc9-8f15451d94f0 /swap      btrfs      rw,noatime,compress=zstd:3,space_cache=v2,subvolid=259,subvol=/@swap 0 0
+UUID=53791c43-d7ad-48fd-bbc9-8f15451d94f0 /swap      btrfs      rw,noatime,compress=zstd:3,space_cache=v2,subvol=/@swap 0 0
 
 # /dev/mapper/cryptroot LABEL=ROOT
-UUID=53791c43-d7ad-48fd-bbc9-8f15451d94f0 /.snapshots btrfs      rw,noatime,compress=zstd:3,space_cache=v2,subvolid=260,subvol=/@snapshots 0 0
+UUID=53791c43-d7ad-48fd-bbc9-8f15451d94f0 /.snapshots btrfs      rw,noatime,compress=zstd:3,space_cache=v2,subvol=/@snapshots 0 0
 
 # /dev/mapper/cryptroot LABEL=ROOT
 UUID=53791c43-d7ad-48fd-bbc9-8f15451d94f0 /.btrfsroot btrfs      rw,noatime,compress=zstd:3,space_cache=v2,subvolid=5,subvol=/ 0 0
