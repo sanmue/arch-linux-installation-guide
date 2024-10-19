@@ -2030,25 +2030,21 @@ Enabling SPICE support on the **guest** (Virtual machine):
 
 ### Failed to synchronize all databases (unable to lock database)
 
-e.g. after snapper-rollback
-
-- `sudo pacman -Syu` # oder `sudo pacman -S <package>`
-
- ```text
- error: failed to synchronize all databases (unable to lock database)
- ```
-
 - <https://bbs.archlinux.org/viewtopic.php?id=249093>
 - <https://wiki.archlinux.org/title/Pacman#%22Failed_to_init_transaction_(unable_to_lock_database)%22_error>
 
-You can run `fuser /var/lib/pacman/db.lck` as root to verify if there is any process still using it.
+E.g. after snapper-rollback
+`sudo pacman -Syu` or `sudo pacman -S <package>`, ... show this error message:
 
-- `sudo fuser /var/lib/pacman/db.lck`
-  - if `db.lck` is used:
+```text
+error: failed to synchronize all databases (unable to lock database)
+```
 
-  ```text
-  /var/lib/pacman/db.lck:   795
-  ```
+You can run `fuser /var/lib/pacman/db.lck` as root to verify if there is any process still using pacman's `db.lck` file:
+`sudo fuser /var/lib/pacman/db.lck`
 
-  - you can not delete it yet
-  - else delete `db.lck`: `sudo rm /var/lib/pacman/db.lck`
+- if it shows something like:
+  - `/var/lib/pacman/db.lck:   795`
+  - you can not delete it yet, since `db.lck` is still used by a process (with process id `795` in this example)
+- else you can delete `db.lck`:
+  - `sudo rm /var/lib/pacman/db.lck`
