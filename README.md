@@ -2008,15 +2008,15 @@ e.g.: `sudo pacman -S --needed bzip2 bzip3 gzip zstd xz   p7zip zip unzip`
 ### Installating packages for virtualization
 
 - `pacman -S --needed qemu-full libvirt iptables-nft dnsmasq openbsd-netcat libguestfs edk2-ovmf swtpm vde2 virt-install`
-  - `systemclt enable --now libvirtd.service`
-  - `systemclt start virtlogd.service`
+  - `systemctl enable --now libvirtd.service`
+  - `systemctl start virtlogd.service`
 
 ### Client
 
 - `pacman -S --needed virt-manager virt-viewer`
 - and / or cockpit with additinal features
 - `pacman -S --needed  cockpit cockpit-machines cockpit-podman cockpit-storaged cockpit-packagekit udisks2 pcp` # Browser based admin tool for Linux
-  - `systemclt enable --now cockpit.socket`
+  - `systemctl enable --now cockpit.socket`
 
 ### SPICE
 
