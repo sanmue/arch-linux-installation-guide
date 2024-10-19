@@ -102,11 +102,11 @@ Using snapper + [snapper-rollback (AUR)](https://aur.archlinux.org/packages/snap
         - [Automatic snapshots and cleanup](#automatic-snapshots-and-cleanup)
       - [Snapper-rollback (AUR)](#snapper-rollback-aur)
         - [Rollback example](#rollback-example)
-    - [INSTERTION: Config zram as swap](#instertion-config-zram-as-swap)
+    - [INSERTION: Config zram as swap](#insertion-config-zram-as-swap)
       - [Disable zswap](#disable-zswap)
       - [Using zram-genrator](#using-zram-genrator)
       - [Optimizing swap on zram](#optimizing-swap-on-zram)
-    - [INSTERTION: Desktop Environment](#instertion-desktop-environment)
+    - [INSERTION: Desktop Environment](#insertion-desktop-environment)
     - [Security](#security)
       - [Enforcing strong passwords with pam\_pwquality](#enforcing-strong-passwords-with-pam_pwquality)
       - [CPU](#cpu)
@@ -1172,7 +1172,7 @@ Script to rollback snapper snapshots (comfortable via CLI of a booted system)
 - <https://wiki.archlinux.org/title/Snapper#Single_snapshots>
 - `sudo snapper -c root create -c number --description "after snapper-rollback <snapshot-number>"`
 
-### INSTERTION: Config zram as swap
+### INSERTION: Config zram as swap
 
 **Text extracts from the sources listed below:**
 zram can be used for swap or as a general-purpose RAM disk.
@@ -1283,7 +1283,7 @@ vm.watermark_scale_factor = 125
 vm.page-cluster = 0
 ```
 
-### INSTERTION: Desktop Environment
+### INSERTION: Desktop Environment
 
 If you want a Desktop Environment (e.g. Gnome, Plasma KDE, ...) now, jump to "Graphical user interface" and come back afterwards
 
