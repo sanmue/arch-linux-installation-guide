@@ -506,7 +506,6 @@ Subvolume-ID 5 (top level 5) = btrfsroot ("/")
   - ~~`mount /dev/mapper/cryptroot -o subvolid=256,compress=zstd,noatime /mnt`~~
 - If you did not enrypt root partition:
   - `mount /dev/vda2 -o subvolid=/@,compress=zstd,noatime /mnt` # Mount the subvolume on which we want to install the system # adjust to your device path
-  - ~~`mount /dev/vda2 -o subvolid=256,compress=zstd,noatime /mnt`~~
 
 ### Create folders for the subvolumes (mountpoints)
 
@@ -557,7 +556,6 @@ Adjust to your device path.
 - encryption: `mount /dev/mapper/cryptroot -o subvol=/,compress=zstd,noatime /mnt/.btrfsroot`
 - ~~encryption: `mount /dev/mapper/cryptroot -o subvolid=5,compress=zstd,noatime /mnt/.btrfsroot`~~
 - no encryption: `mount /dev/vda2 -o subvol=/,compress=zstd,noatime /mnt/.btrfsroot`
-- ~~no encryption: `mount /dev/vda2 -o subvolid=5,compress=zstd,noatime /mnt/.btrfsroot`~~
 
 ### Mount options
 
