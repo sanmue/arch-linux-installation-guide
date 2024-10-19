@@ -1,10 +1,12 @@
 # Arch Linux Installation Guide
 
+## Intro
+
 This Arch Linux installation guide may be seen as a practical example following the [Arch Wiki installation guide](https://wiki.archlinux.org/title/Installation_guide).
 
 Some examples of points covered in this guide:
 
-- UEFI / GPT (with EFI partition) or BIOS / GPT
+- UEFI/GPT (with EFI partition) or BIOS/GPT
 - GRUB bootloader
 - Btrfs filesystem
 - snapper
@@ -23,6 +25,172 @@ Using snapper + [snapper-rollback (AUR)](https://aur.archlinux.org/packages/snap
 
 [mjkstra's](https://gist.github.com/mjkstra) ['Modern Arch linux installation guide'](https://gist.github.com/mjkstra/96ce7a5689d753e7a6bdd92cdc169bae) was a kicking inspiration doing this guide.
 
+## Table of Content
+
+- [Arch Linux Installation Guide](#arch-linux-installation-guide)
+  - [Intro](#intro)
+  - [Table of Content](#table-of-content)
+  - [=== Pre-installation steps ===](#-pre-installation-steps-)
+  - [Keyboard layout and font](#keyboard-layout-and-font)
+  - [Excursus: Connecting to the machine to be installed via ssh](#excursus-connecting-to-the-machine-to-be-installed-via-ssh)
+  - [Verify Boot Mode](#verify-boot-mode)
+  - [Internet connection](#internet-connection)
+  - [Update the system clock](#update-the-system-clock)
+  - [Disk partitioning](#disk-partitioning)
+    - [List available devices](#list-available-devices)
+    - [UEFI/GPT](#uefigpt)
+      - [Create Partitions](#create-partitions)
+      - [Current partition table UEFI/GPT](#current-partition-table-uefigpt)
+    - [BIOS/GPT](#biosgpt)
+      - [Create partitions](#create-partitions-1)
+      - [Current partition table BIOS/GPT](#current-partition-table-biosgpt)
+    - [Remark regarding partitioning (UEFI and BIOS)](#remark-regarding-partitioning-uefi-and-bios)
+    - [Encryption](#encryption)
+  - [Format partitions](#format-partitions)
+  - [Btrfs subvolumes](#btrfs-subvolumes)
+    - [Mount root partiton](#mount-root-partiton)
+    - [Create subvolumes](#create-subvolumes)
+    - [List subvolumes](#list-subvolumes)
+    - [Unmount root subvolume](#unmount-root-subvolume)
+  - [Mount the file systems](#mount-the-file-systems)
+    - [Mount partition to install the system](#mount-partition-to-install-the-system)
+    - [Create folders for the subvolumes (mountpoints)](#create-folders-for-the-subvolumes-mountpoints)
+    - [Mount the efi partition](#mount-the-efi-partition)
+    - [Mount the subvolumes](#mount-the-subvolumes)
+    - [Mount btrfsroot for 'snapper-rollback'](#mount-btrfsroot-for-snapper-rollback)
+    - [Mount options](#mount-options)
+    - [Show current block device list](#show-current-block-device-list)
+  - [Installation](#installation)
+    - [Select the mirrors](#select-the-mirrors)
+    - [Install essential packages](#install-essential-packages)
+  - [Configure the system](#configure-the-system)
+    - [Fstab (filesystem table)](#fstab-filesystem-table)
+      - [UEFI/GPT with encryption](#uefigpt-with-encryption)
+      - [UEFI/GPT without encryption](#uefigpt-without-encryption)
+      - [BIOS/GPT with encryption](#biosgpt-with-encryption)
+    - [Chroot (Change root into new system)](#chroot-change-root-into-new-system)
+    - [Time](#time)
+    - [Localization](#localization)
+  - [Network configuration](#network-configuration)
+    - [hostname file](#hostname-file)
+    - [hosts file](#hosts-file)
+    - [Network Management](#network-management)
+  - [Initramfs (Create initial ramdisk environment)](#initramfs-create-initial-ramdisk-environment)
+    - [Check mkinitcpio.conf](#check-mkinitcpioconf)
+      - [Modules](#modules)
+      - [Hooks](#hooks)
+    - [Creating a new initramfs](#creating-a-new-initramfs)
+  - [Boot loader](#boot-loader)
+    - [Grub](#grub)
+      - [Config default grub](#config-default-grub)
+      - [Installation GRUB](#installation-grub)
+      - [Configuration](#configuration)
+  - [SET PASSWORD FOR root](#set-password-for-root)
+  - [Reboot](#reboot)
+  - [=== Post-installation steps ===](#-post-installation-steps-)
+  - [System administration](#system-administration)
+    - [Users and groups](#users-and-groups)
+      - [Add a new user](#add-a-new-user)
+      - [User directories](#user-directories)
+      - [Modify sudoers file (optional)](#modify-sudoers-file-optional)
+    - [INSERTION: ssh again from another machine](#insertion-ssh-again-from-another-machine)
+    - [INSERTION: Snapper and btrfs snapshots](#insertion-snapper-and-btrfs-snapshots)
+      - [Install packages](#install-packages)
+      - [create snapper config file](#create-snapper-config-file)
+      - [Config snapper snapshots](#config-snapper-snapshots)
+        - [Permissions](#permissions)
+        - [Automatic snapshots and cleanup](#automatic-snapshots-and-cleanup)
+      - [Snapper-rollback (AUR)](#snapper-rollback-aur)
+        - [Rollback example](#rollback-example)
+    - [INSTERTION: Config zram as swap](#instertion-config-zram-as-swap)
+      - [Disable zswap](#disable-zswap)
+      - [Using zram-genrator](#using-zram-genrator)
+      - [Optimizing swap on zram](#optimizing-swap-on-zram)
+    - [INSTERTION: Desktop Environment](#instertion-desktop-environment)
+    - [Security](#security)
+      - [Enforcing strong passwords with pam\_pwquality](#enforcing-strong-passwords-with-pam_pwquality)
+      - [CPU](#cpu)
+      - [Memory](#memory)
+      - [Storage](#storage)
+      - [User setup](#user-setup)
+      - [Restricting root](#restricting-root)
+      - [Mandatory access control](#mandatory-access-control)
+      - [Kernel hardening](#kernel-hardening)
+      - [Sandboxing applications](#sandboxing-applications)
+      - [Network and firewalls](#network-and-firewalls)
+        - [Firewalls](#firewalls)
+        - [Kernel parameters](#kernel-parameters)
+        - [SSH](#ssh)
+        - [DNS](#dns)
+        - [Proxies](#proxies)
+        - [Managing TLS certificates](#managing-tls-certificates)
+    - [Service management](#service-management)
+      - [Retrieve and filter the latest Pacman mirror list via Reflector](#retrieve-and-filter-the-latest-pacman-mirror-list-via-reflector)
+      - [avahi, haveged, upower](#avahi-haveged-upower)
+      - [Enable further services](#enable-further-services)
+    - [System maintenance](#system-maintenance)
+      - [pacman-contrib](#pacman-contrib)
+      - [Performance and download speeds](#performance-and-download-speeds)
+        - [Parallel Downloads](#parallel-downloads)
+        - [Sorting Mirrors](#sorting-mirrors)
+      - [Upgrading the system](#upgrading-the-system)
+        - [Alerts during upgrade](#alerts-during-upgrade)
+        - [Avoid certain pacman commands](#avoid-certain-pacman-commands)
+        - [Deal promptly with new configuration files](#deal-promptly-with-new-configuration-files)
+        - [Restart or reboot after upgrades](#restart-or-reboot-after-upgrades)
+        - [Revert broken updates](#revert-broken-updates)
+      - [Removing unused packages (orphans)](#removing-unused-packages-orphans)
+      - [Clean the filesystem](#clean-the-filesystem)
+      - [Refresh pacman files database](#refresh-pacman-files-database)
+  - [Package management](#package-management)
+    - [pacman](#pacman)
+      - [Downloading packages in parallel](#downloading-packages-in-parallel)
+      - [Cleaning the package cache](#cleaning-the-package-cache)
+      - [Tips and tricks](#tips-and-tricks)
+    - [Repositories](#repositories)
+      - [Using 32-bit applications](#using-32-bit-applications)
+      - [Unofficial user repositories](#unofficial-user-repositories)
+    - [Mirrors](#mirrors)
+    - [Arch Build System](#arch-build-system)
+    - [Arch User Repository (AUR)](#arch-user-repository-aur)
+      - [AUR helpers](#aur-helpers)
+  - [Booting](#booting)
+  - [Graphical user interface](#graphical-user-interface)
+    - [Display drivers](#display-drivers)
+      - [AMD](#amd)
+      - [Intel](#intel)
+      - [Nvidia](#nvidia)
+    - [Desktop environments](#desktop-environments)
+      - [Example installation: Gnome](#example-installation-gnome)
+  - [Power management](#power-management)
+  - [Multimedia](#multimedia)
+    - [Sound system](#sound-system)
+    - [Codecs and containers](#codecs-and-containers)
+  - [Networking](#networking)
+    - [Setting up a firewall](#setting-up-a-firewall)
+  - [Input devices](#input-devices)
+  - [Optimization](#optimization)
+  - [System services](#system-services)
+    - [File index and search](#file-index-and-search)
+      - [locate](#locate)
+    - [Local mail delivery](#local-mail-delivery)
+    - [Printing](#printing)
+      - [CUPS](#cups)
+  - [Appearance](#appearance)
+    - [Fonts](#fonts)
+      - [Installing fonts](#installing-fonts)
+    - [GTK and Qt themes](#gtk-and-qt-themes)
+  - [Console improvements](#console-improvements)
+    - [Alternative shells](#alternative-shells)
+    - [Compressed files](#compressed-files)
+      - [tar](#tar)
+  - [Virtualization (Qemu/KVM)](#virtualization-qemukvm)
+    - [Installating packages for virtualization](#installating-packages-for-virtualization)
+    - [Client](#client)
+    - [SPICE](#spice)
+  - [Troubleshooting](#troubleshooting)
+    - [Failed to synchronize all databases (unable to lock database)](#failed-to-synchronize-all-databases-unable-to-lock-database)
+
 ## === Pre-installation steps ===
 
 Boot the live installation media.
@@ -37,7 +205,7 @@ Boot the live installation media.
 - `setfont ter-132b` # optional # set (bigger) font # `ter-122b` # `setfont - d` (double size)
   - available fonts: `ls /usr/share/kbd/consolefonts/ | less`
 
-## Excursus - Connecting to the machine to be installed via ssh (optional)
+## Excursus: Connecting to the machine to be installed via ssh
 
 - `passwd` # set passwort for current (root) user
 &nbsp;
@@ -121,7 +289,7 @@ I/O size (minimum/optimal): 512 bytes / 512 bytes
 [...]
 ```
 
-### UEFI / GPT
+### UEFI/GPT
 
 #### Create Partitions
 
@@ -146,7 +314,7 @@ p           # print current partition table
 w           # write to disk
 ```
 
-#### Current partition table
+#### Current partition table UEFI/GPT
 
 ```text
 Disk /dev/vda: 25 GiB, 26843545600 bytes, 52428800 sectors
@@ -158,7 +326,7 @@ Device       Start      End  Sectors Size Type
 /dev/vda2  2099200 52426751 50327552  24G Linux root (x86-64)
 ```
 
-### BIOS / GPT
+### BIOS/GPT
 
 If you are installing on old hardware with a BIOS not supporting GPT there is a [fix](https://wiki.archlinux.org/title/Partitioning#Tricking_old_BIOS_into_booting_from_GPT).
 Or use [MBR](https://wiki.archlinux.org/title/Partitioning#BIOS/MBR_layout_example) instead of [GPT](https://wiki.archlinux.org/title/Partitioning#BIOS/GPT_layout_example).
@@ -186,7 +354,7 @@ p           # print current partition table
 w           # write to disk
 ```
 
-#### Current partition table BIOS / GPT
+#### Current partition table BIOS/GPT
 
 ```text
 Disk /dev/vda: 35 GiB, 37580963840 bytes, 73400320 sectors
@@ -252,7 +420,7 @@ NAME                      MAJ:MIN RM   SIZE RO TYPE  MOUNTPOINTS
 - <https://wiki.archlinux.org/title/EFI_system_partition#Format_the_partition>
 &nbsp;
 
-- EFI partition (skip for BIOS / GPT)
+- EFI partition (skip for BIOS/GPT)
   - `mkfs.fat -F32 -n EFI /dev/vda1` # EFI partition # adjust to your device path
 - root partition
   - if you enrypted the root partition:
@@ -389,7 +557,7 @@ Adjust to your device path.
 
 ### Show current block device list
 
-UEFI / GPT with encryption:
+UEFI/GPT with encryption:
 `lsblk -p`
 
 ```text
@@ -406,7 +574,7 @@ UEFI / GPT with encryption:
                                                      /mnt
 ```
 
-UEFI / GPT, no encryption:
+UEFI/GPT, no encryption:
 `lsblk`
 
 ```text
@@ -423,7 +591,7 @@ vda    254:0    0    25G  0 disk
                                  /mnt
 ```
 
-BIOS / GPT, with encryption:
+BIOS/GPT, with encryption:
 `lsblk -p`
 
 ```text
@@ -495,7 +663,7 @@ All packages above together:
 
 > :warning: The UUIDs shown at 'with enryption' or 'without encrypion' would normally match. They are only different because it was a seperate new installation both times with new random UUIDs generated.</span>
 
-#### UEFI / GPT with encryption
+#### UEFI/GPT with encryption
 
 ```text
 # <file system> <dir> <type> <options> <dump> <pass>
@@ -523,7 +691,7 @@ UUID=7986ecc9-7656-4ccc-814f-e58f20e241a5 /.btrfsroot btrfs      rw,noatime,comp
 /swap/swapfile       none       swap       defaults   0 0
 ```
 
-#### UEFI / GPT without encryption
+#### UEFI/GPT without encryption
 
 ```text
 # <file system> <dir> <type> <options> <dump> <pass>
@@ -551,7 +719,7 @@ UUID=a552a029-4972-4b3a-b2cd-21ddb5e2e870 /.btrfsroot btrfs      rw,noatime,comp
 /swap/swapfile       none       swap       defaults   0 0
 ```
 
-#### BIOS / GPT with encryption
+#### BIOS/GPT with encryption
 
 ```text
 # <file system> <dir> <type> <options> <dump> <pass>
@@ -576,7 +744,7 @@ UUID=53791c43-d7ad-48fd-bbc9-8f15451d94f0 /.btrfsroot btrfs      rw,noatime,comp
 /swap/swapfile       none       swap       defaults   0 0
 ```
 
-### Chroot - Change root into new system
+### Chroot (Change root into new system)
 
 - `arch-chroot /mnt`
 
@@ -664,7 +832,7 @@ We installed "NetworkManager" (see: "Install essential packages")
 - or the corresponding service, if you installed another one
   - e.g. dhcpcd: `systemctl enable dhcpcd.service`)
 
-## Initramfs - create initial ramdisk environment
+## Initramfs (Create initial ramdisk environment)
 
 - <https://wiki.archlinux.org/title/Dm-crypt/Encrypting_an_entire_system#Configuring_mkinitcpio>
 - <https://wiki.archlinux.org/title/Dm-crypt/System_configuration#mkinitcpio>
@@ -747,13 +915,13 @@ To unlock the encrypted root partition at boot, set kernel parameters:
 
 #### Installation GRUB
 
-UEFI / GPT:
+UEFI/GPT:
 
 - ~~`grub-install --target=x86_64-efi --efi-directory=/efi --boot-directory=/boot --bootloader-id=GRUB`~~
   - in this case it is not necessary to set `boot-directory` parameter (but would not be wrong either)
 - `grub-install --target=x86_64-efi --efi-directory=/efi --bootloader-id=GRUB`
 
-BIOS / GPT
+BIOS/GPT
 
 - `grub-install --target=i386-pc /dev/vda`
 
@@ -838,7 +1006,7 @@ Create config file:
 - Uncomment to allow members of group wheel to execute any command:
   - `%wheel ALL=(ALL:ALL) ALL`
 
-### INSERTION - ssh again from another machine
+### INSERTION: ssh again from another machine
 
 - `vim /etc/ssh/ssh_config`
   - uncomment: `PasswordAuthentication yes`
@@ -854,7 +1022,7 @@ Connect to VM / machine from your machine:
 > :warning: If logged in as the newly created user:
 > Prefix the commands in the next steps with `sudo`.
 
-### INSERTION - Snapper / btrfs snapshots
+### INSERTION: Snapper and btrfs snapshots
 
 - <https://wiki.archlinux.org/title/Btrfs#Snapshots>
 - <https://archive.kernel.org/oldwiki/btrfs.wiki.kernel.org/index.php/SysadminGuide.html#Snapshots>
@@ -905,7 +1073,7 @@ Browse the snapshots directory (optional):
   - `ALLOW_GROUPS="wheel"` # groups allowed to work with config
   - `SYNC_ACL="yes"` # sync permissions of `ALLOW_GROUPS` (and `ALLOW_USERS`) to snapshots directory
 
-##### Automatic snapshots + cleanup
+##### Automatic snapshots and cleanup
 
 - <https://wiki.archlinux.org/title/Snapper#Taking_snapshots>
 - `sudo vim /etc/snapper/configs/root`
@@ -917,7 +1085,7 @@ Browse the snapshots directory (optional):
 - <https://wiki.archlinux.org/title/Snapper#Set_snapshot_limits>
 - `sudo sudo systemctl enable --now snapper-cleanup.timer` # periodically clean up older snapshots
 
-#### 'Snapper-rollback' (AUR)
+#### Snapper-rollback (AUR)
 
 Script to rollback snapper snapshots (comfortable via CLI of a booted system)
 
@@ -980,7 +1148,7 @@ Script to rollback snapper snapshots (comfortable via CLI of a booted system)
 - <https://wiki.archlinux.org/title/Snapper#Single_snapshots>
 - `sudo snapper -c root create -c number --description "after snapper-rollback <snapshot-number>"`
 
-### INSTERTION - Config zram as swap
+### INSTERTION: Config zram as swap
 
 **Text extracts from the sources listed below:**
 zram can be used for swap or as a general-purpose RAM disk.
@@ -1091,7 +1259,7 @@ vm.watermark_scale_factor = 125
 vm.page-cluster = 0
 ```
 
-### INSTERTION - Graphical user interface / Desktop Environment
+### INSTERTION: Desktop Environment
 
 If you want a Desktop Environment (e.g. Gnome, Plasma KDE, ...) now, jump to "Graphical user interface" and come back afterwards
 
@@ -1357,7 +1525,7 @@ Contributed scripts and tools for pacman systems
 - <https://archlinux.org/packages/extra/x86_64/pacman-contrib/>
 - `sudo pacman -S pacman-contrib`
 
-#### Performance / Download speeds
+#### Performance and download speeds
 
 - <https://wiki.archlinux.org/title/Pacman/Tips_and_tricks#Performance>
 - <https://wiki.archlinux.org/title/Pacman/Tips_and_tricks#Download_speeds>
@@ -1830,7 +1998,7 @@ e.g.: `sudo pacman -S --needed bzip2 bzip3 gzip zstd xz   p7zip zip unzip`
 
 [...]
 
-## Virtualization - Qemu/KVM
+## Virtualization (Qemu/KVM)
 
 - <https://wiki.archlinux.org/title/Category:Virtualization>
 - <https://wiki.archlinux.org/title/QEMU>
