@@ -992,7 +992,7 @@ Create config file:
 - <https://wiki.archlinux.org/title/Users_and_groups#User_management>
 - <https://wiki.archlinux.org/title/Users_and_groups#Changing_user_defaults>
 
-- `useradd -m -G wheel USERNAME -s /bin/bash` # create user 'USERNAME', add to group 'wheel', shell would autamtically set to the default shell (should be `bash`), but I defined explicitly `bash`
+- `useradd -m -G wheel -s /bin/bash USERNAME` # create user 'USERNAME', add to group 'wheel', shell would autamtically set to the default shell (should be `bash`), but I defined explicitly `bash`
 - `passwd USERNAME` # set a password
 &nbsp;
 
