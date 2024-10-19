@@ -167,7 +167,7 @@ Or use [MBR](https://wiki.archlinux.org/title/Partitioning#BIOS/MBR_layout_examp
 
 `fdisk /dev/vda`
 
-- `,` (comma) slmeans: press enter to accept the default value
+- `,` (comma) means: press enter to accept the default value
 
 ```text
 g           # gpt partition table
