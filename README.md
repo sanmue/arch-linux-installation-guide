@@ -652,8 +652,8 @@ We have UEFI, grub bootmanager, btrfs, using networkmanager, ...:
   - `pipewire-alsa pipewire-pulse pipewire-jack wireplumber`
   - first you could install just `pipewire`, you can still install the others later if needed
 - for bluetooth add: `bluez bluez-utils`
-  - and mybe `sof-firmware` for onboard audio, depending on your system
-- you could also add the another:
+  - and maybe `sof-firmware` for onboard audio, depending on your system
+- you could also add another shell:
   - e.g. for zsh add: `zsh`
 
 All packages above together:
