@@ -6,20 +6,20 @@ This Arch Linux installation guide may be seen as a practical example following 
 
 Some examples of points covered in this guide:
 
-- UEFI/GPT (with EFI partition) or BIOS/GPT
+- UEFI/GPT (with /EFI partition) or BIOS/GPT
 - GRUB bootloader
 - Btrfs filesystem
 - snapper
 - snapper-rollback (AUR)
 - AUR helper (paru)
-- Encryption (optional)
-  - Keyfile for automatically decrypting the encrypted root partition on boot (optional)
+- Encryption and no encryption
+  - Keyfile for automatically decrypting the encrypted root partition on boot
 - Swap file or zram (no hibernation)
 - Display Driver AMD, Intel, (Nvidia)
-  - you should check the Arch Wiki for updates / adjust to your installed grafics card
+  - you should check the Arch Wiki for updates / adjust to your grafics card
 - Desktop Environment
 - Firewall (firewalld)
-- [Chaotic-AUR](https://aur.chaotic.cx/) as an example for an unofficial user repository
+- Chaotic-AUR as an example for an unofficial user repository
 - Additional font installation
 - Virtualization (Qemu/KVM)
 
@@ -85,7 +85,7 @@ Using snapper + [snapper-rollback (AUR)](https://aur.archlinux.org/packages/snap
   - [Initramfs (Create initial ramdisk environment)](#initramfs-create-initial-ramdisk-environment)
     - [Check mkinitcpio.conf](#check-mkinitcpioconf)
       - [Modules](#modules)
-    - [FILES: Include the keyfile for decrypting root partition on boot](#files-include-the-keyfile-for-decrypting-root-partition-on-boot)
+      - [FILES: Include the keyfile for decrypting root partition on boot](#files-include-the-keyfile-for-decrypting-root-partition-on-boot)
       - [Hooks](#hooks)
     - [Creating a new initramfs](#creating-a-new-initramfs)
   - [Boot loader](#boot-loader)
@@ -919,7 +919,7 @@ The next steps to do are:
 - `vim /etc/mkinitcpio.conf`
 - add `btrfs`: `MODULES=(btrfs)`
 
-### FILES: Include the keyfile for decrypting root partition on boot
+#### FILES: Include the keyfile for decrypting root partition on boot
 
 - <https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#With_a_keyfile_embedded_in_the_initramfs>
 
