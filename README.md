@@ -12,7 +12,7 @@ Some examples of points covered in this guide:
 - snapper
 - snapper-rollback (AUR)
 - AUR helper (paru)
-- Encryption and no encryption
+- Encryption (or without encryption)
   - Keyfile for automatically decrypting the encrypted root partition on boot
 - Swap file or zram (no hibernation)
 - Display Driver AMD, Intel, (Nvidia)
