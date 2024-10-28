@@ -12,13 +12,15 @@ Some examples of points covered in this guide:
 - snapper
 - snapper-rollback (AUR)
 - AUR helper (paru)
-- encryption (optional)
-- swap file or zram (no hibernation)
-- Display Driver AMD, Intel, (Nvidia) (but needs checking the Arch Wiki)
+- Encryption (optional)
+  - Keyfile for automatically decrypting the encrypted root partition on boot (optional)
+- Swap file or zram (no hibernation)
+- Display Driver AMD, Intel, (Nvidia)
+  - you should check the Arch Wiki for updates / adjust to your installed grafics card
 - Desktop Environment
 - Firewall (firewalld)
 - [Chaotic-AUR](https://aur.chaotic.cx/) as an example for an unofficial user repository
-- additional font installation
+- Additional font installation
 - Virtualization (Qemu/KVM)
 
 Using snapper + [snapper-rollback (AUR)](https://aur.archlinux.org/packages/snapper-rollback) (instead of [Timeshift](https://wiki.archlinux.org/title/Timeshift)) inspired by [mpr's video](https://www.youtube.com/watch?v=maIu1d2lAiI) because supports a more flexible btrfs subvolume layout.
@@ -46,6 +48,10 @@ Using snapper + [snapper-rollback (AUR)](https://aur.archlinux.org/packages/snap
       - [Current partition table BIOS/GPT](#current-partition-table-biosgpt)
     - [Remark regarding partitioning (UEFI and BIOS)](#remark-regarding-partitioning-uefi-and-bios)
     - [Encryption](#encryption)
+      - [Encrypting our root partition](#encrypting-our-root-partition)
+      - [Open the LUKS encrypted root partition](#open-the-luks-encrypted-root-partition)
+      - [Show current block device list](#show-current-block-device-list)
+      - [Note regarding passwort input at boot](#note-regarding-passwort-input-at-boot)
   - [Format partitions](#format-partitions)
   - [Btrfs subvolumes](#btrfs-subvolumes)
     - [Mount root partiton](#mount-root-partiton)
@@ -59,7 +65,7 @@ Using snapper + [snapper-rollback (AUR)](https://aur.archlinux.org/packages/snap
     - [Mount the subvolumes](#mount-the-subvolumes)
     - [Mount btrfsroot for 'snapper-rollback'](#mount-btrfsroot-for-snapper-rollback)
     - [Mount options](#mount-options)
-    - [Show current block device list](#show-current-block-device-list)
+    - [Show current block device list](#show-current-block-device-list-1)
   - [Installation](#installation)
     - [Select the mirrors](#select-the-mirrors)
     - [Install essential packages](#install-essential-packages)
@@ -75,14 +81,19 @@ Using snapper + [snapper-rollback (AUR)](https://aur.archlinux.org/packages/snap
     - [hostname file](#hostname-file)
     - [hosts file](#hosts-file)
     - [Network Management](#network-management)
+  - [INSERTION: keyfile for decrypting root partition on boot](#insertion-keyfile-for-decrypting-root-partition-on-boot)
   - [Initramfs (Create initial ramdisk environment)](#initramfs-create-initial-ramdisk-environment)
     - [Check mkinitcpio.conf](#check-mkinitcpioconf)
       - [Modules](#modules)
+    - [FILES: Include the keyfile for decrypting root partition on boot](#files-include-the-keyfile-for-decrypting-root-partition-on-boot)
       - [Hooks](#hooks)
     - [Creating a new initramfs](#creating-a-new-initramfs)
   - [Boot loader](#boot-loader)
     - [Grub](#grub)
       - [Config default grub](#config-default-grub)
+        - [Enrypted the root partition](#enrypted-the-root-partition)
+        - [Preparing next step: get UUID of encrypted partition](#preparing-next-step-get-uuid-of-encrypted-partition)
+        - [Unlock the encrypted root partition on boot by setting kernel parameters](#unlock-the-encrypted-root-partition-on-boot-by-setting-kernel-parameters)
       - [Installation GRUB](#installation-grub)
       - [Configuration](#configuration)
   - [SET PASSWORD FOR root](#set-password-for-root)
@@ -383,7 +394,7 @@ Device     Start      End  Sectors Size Type
 - <https://wiki.archlinux.org/title/GRUB#Encrypted_/boot>
 - <https://archive.kernel.org/oldwiki/btrfs.wiki.kernel.org/index.php/SysadminGuide.html#Btrfs_on_top_of_dmcrypt>
 
-Encrypting our root partition:
+#### Encrypting our root partition
 
 - <https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#Encrypting_devices_with_LUKS_mode>
 - ~~`cryptsetup luksFormat /dev/vda2`~~
@@ -394,12 +405,14 @@ Encrypting our root partition:
   - <https://savannah.gnu.org/bugs/index.php?55093>
   - <https://lists.gnu.org/archive/html/grub-devel/2024-05/msg00166.html>
 
-Open the LUKS encrypted root partition:
+#### Open the LUKS encrypted root partition
 
 - <https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#Unlocking/Mapping_LUKS_partitions_with_the_device_mapper>
 - `cryptsetup open /dev/vda2 cryptroot`
   - Once opened, the root partition device address would be `/dev/mapper/cryptroot` instead of the partition `/dev/vda2`; device mapper name is: `cryptroot`
   - you should make a note, we will need this info later
+
+#### Show current block device list
 
 `lsblk -p`
 
@@ -413,10 +426,21 @@ NAME                      MAJ:MIN RM   SIZE RO TYPE  MOUNTPOINTS
   └─/dev/mapper/cryptroot 253:0    0    24G  0 crypt 
 ```
 
-&nbsp;
+#### Note regarding passwort input at boot
 
-> :warning:
-> With current setup, when starting your machine you will be asked twice for a password for decrypting: 1x bootloader, 1x cryptroot.
+With current setup, when starting your machine you will be asked twice for a password for decrypting: 1x bootloader, 1x cryptroot.
+
+> :memo: **keyfile**
+> You can generate and add a keyfile to [unlock cryptroot at boot](https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#With_a_keyfile_embedded_in_the_initramfs), which has to be accessible only by root user.
+>
+> The steps will be described at a later point, see: 'Initramfs (Create initial ramdisk environment)' and 'BOOT LOADER -> GRUB', when in chroot environment.
+>
+> Since you will still have to enter a secure passphrase once on boot, and `/boot` is encrypted (on cryptroot), and for UEFI: ESP ist mounted to `/efi`, there should be no real security disadvantages.
+
+- Unlocking the root partition at boot, with a keyfile embedded in the initramfs
+  - <https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#With_a_keyfile_embedded_in_the_initramfs>
+- EFI system partition (ESP), typical mount points, mount the ESP to `/efi`:
+  - <https://wiki.archlinux.org/title/EFI_system_partition#Typical_mount_points>
 
 ## Format partitions
 
@@ -425,13 +449,13 @@ NAME                      MAJ:MIN RM   SIZE RO TYPE  MOUNTPOINTS
 - <https://wiki.archlinux.org/title/EFI_system_partition#Format_the_partition>
 &nbsp;
 
-- EFI partition (skip for BIOS/GPT)
+- EFI partition (only UEFI boot mode, skip for BIOS boot mode)
   - `mkfs.fat -F32 -n EFI /dev/vda1` # EFI partition # adjust to your device path
 - root partition
   - if you enrypted the root partition:
     - `mkfs.btrfs -L ROOT /dev/mapper/cryptroot`
     - the device `/dev/mapper/cryptroot` can then be mounted like any other partition
-  - if you did not enrypt root partition:
+  - if you did not encrypt the root partition:
     - `mkfs.btrfs -L ROOT /dev/vda2` # main partition # adjust to your device path
 
 ## Btrfs subvolumes
@@ -522,7 +546,7 @@ Subvolume-ID 5 (top level 5) = btrfsroot ("/")
 
 ### Mount the efi partition
 
-skip if BOOT / GPT
+only UEFI, skip if BIOS boot mode
 
 - `mount /dev/vda1 /mnt/efi` # adjust to your device path
 
@@ -639,8 +663,7 @@ The minimum would be:
 `pacstrap -K /mnt base linux linux-firmware`
 and install the rest while chrooted into the new system (e.g. see: Post-installation -> System administration -> after "Users and groups").
 
-But lets already install some more package here.
-We have UEFI, grub bootmanager, btrfs, using networkmanager, ...:
+But lets already install some more package here:
 
 - `pacstrap -K /mnt base linux linux-firmware linux-headers   grub efibootmgr btrfs-progs mtools   base-devel sudo man-db man-pages texinfo   networkmanager   reflector   openssh vim rsync terminus-font`
 
@@ -854,7 +877,32 @@ We installed "NetworkManager" (see: "Install essential packages")
 - Enabling its systemd unit so that it starts at boot:
   - `systemctl enable NetworkManager.service`
 - or the corresponding service, if you installed another one
-  - e.g. dhcpcd: `systemctl enable dhcpcd.service`)
+  - e.g. dhcpcd: `systemctl enable dhcpcd.service`
+
+## INSERTION: keyfile for decrypting root partition on boot
+
+- <https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#Creating_a_keyfile_with_random_characters>
+- <https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#Storing_the_keyfile_on_a_file_system>
+- <https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#Configuring_LUKS_to_make_use_of_the_keyfile>
+
+If the root partition is encrypted and you want it to be dercrypted automatically on boot, you can use a keyfile.
+Skip this step, if you no not use enryption or do not want to use keyfile.
+
+> :memo: You will still be asked to enter the passphrase at boot for decrypting bootloader
+> (the passphrase you set when encryptig the root partition, since `/boot` is on the encrypted root partition)
+
+- Creating a keyfile and storing it on the file system:
+  - `dd bs=512 count=4 if=/dev/random iflag=fullblock | install -m 0600 /dev/stdin /etc/cryptsetup-keys.d/crypto_keyfile.key`
+- Configuring LUKS to make use of the keyfile:
+  - e.g.: `cryptsetup luksAddKey /dev/vda2 /etc/cryptsetup-keys.d/crypto_keyfile.key` # `/dev/vda2` is our root partition
+    - you will be asked to enter the passphrase you set when encryptig the root partition
+
+The next steps to do are:
+
+- Include the key in mkinitcpio's FILES array
+  - see below (in `mkinitcpio.conf`)
+- Specify the keyfile with the `cryptkey=` kernel parameter
+  - see below (in `/etc/default/grub`)
 
 ## Initramfs (Create initial ramdisk environment)
 
@@ -870,6 +918,16 @@ We installed "NetworkManager" (see: "Install essential packages")
 
 - `vim /etc/mkinitcpio.conf`
 - add `btrfs`: `MODULES=(btrfs)`
+
+### FILES: Include the keyfile for decrypting root partition on boot
+
+- <https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#With_a_keyfile_embedded_in_the_initramfs>
+
+Skip this step, if you no not use enryption or do not use a keyfile.
+
+- Include the key in mkinitcpio's FILES array:
+  - `vim /etc/mkinitcpio.conf`
+  - set: `FILES=(/etc/cryptsetup-keys.d/crypto_keyfile.key)`
 
 #### Hooks
 
@@ -905,6 +963,8 @@ For LVM, **system** encryption or RAID, modify mkinitcpio.conf(5) (`/etc/mkinitc
 
 #### Config default grub
 
+##### Enrypted the root partition
+
 - <https://wiki.archlinux.org/title/GRUB#Encrypted_/boot>
 
 If you enrypted the root partition (which includes `/boot` folder), we have to configure the boot loader:
@@ -912,7 +972,9 @@ If you enrypted the root partition (which includes `/boot` folder), we have to c
 - `vim /etc/default/grub`
 - uncomment: `GRUB_ENABLE_CRYPTODISK=y`
 
-We need some info (UUID of encryptet partition) for the next step:
+##### Preparing next step: get UUID of encrypted partition
+
+We need some info (UUID of encrypted partition) for the next step:
 `blkid`
 
 ```text
@@ -929,13 +991,21 @@ or more specific:
 - (UUID of decrypted partition: `blkid -o value -s UUID /dev/mapper/cryptroot`)
   - (`7986ecc9-7656-4ccc-814f-e58f20e241a5`)
 
-To unlock the encrypted root partition at boot, set kernel parameters:
+##### Unlock the encrypted root partition on boot by setting kernel parameters
 
 - search for the line starting with `GRUB_CMDLINE_LINUX_DEFAULT` in `/etc/default/grub`
   - which should look like this: `GRUB_CMDLINE_LINUX_DEFAULT="loglevel=3 quiet"`
-- add at the end e.g.:
-  - `cryptdevice=UUID=0daddb47-c687-4194-90e4-ac023ea72b5b:cryptroot root=/dev/mapper/cryptroot`
-    - *cryptdevice=UUID=deviceUuidOfEncryptedDevice:dmname root=pathOfDecryptedPartitionDmname*
+- add at the end (separated by a space character):
+  - *cryptdevice=UUID=deviceUuidOfEncryptedDevice:dmname root=pathOfDecryptedPartitionDmname*
+  - e.g.: `cryptdevice=UUID=0daddb47-c687-4194-90e4-ac023ea72b5b:cryptroot root=/dev/mapper/cryptroot`
+
+If you also dediced to use a keyfile to **automatically** unlock root partition on boot:
+
+- additionally add at the end (separated by a space character):
+  - `cryptkey=rootfs:/etc/cryptsetup-keys.d/crypto_keyfile.key`
+
+Altogether it would look like this in our example:
+`GRUB_CMDLINE_LINUX_DEFAULT="loglevel=3 quiet cryptdevice=UUID=0daddb47-c687-4194-90e4-ac023ea72b5b:cryptroot root=/dev/mapper/cryptroot cryptkey=rootfs:/etc/cryptsetup-keys.d/crypto_keyfile.key"`
 
 #### Installation GRUB
 
