@@ -420,10 +420,10 @@ Device     Start      End  Sectors Size Type
 NAME                      MAJ:MIN RM   SIZE RO TYPE  MOUNTPOINTS
 /dev/loop0                  7:0    0 790.3M  1 loop  /run/archiso/airootfs
 /dev/sr0                   11:0    1   1.1G  0 rom   /run/archiso/bootmnt
-/dev/vda                  254:0    0    25G  0 disk  
-├─/dev/vda1               254:1    0     1G  0 part  
-└─/dev/vda2               254:2    0    24G  0 part  
-  └─/dev/mapper/cryptroot 253:0    0    24G  0 crypt 
+/dev/vda                  254:0    0    25G  0 disk
+├─/dev/vda1               254:1    0     1G  0 part
+└─/dev/vda2               254:2    0    24G  0 part
+  └─/dev/mapper/cryptroot 253:0    0    24G  0 crypt
 ```
 
 #### Note regarding passwort input at boot
@@ -529,7 +529,7 @@ Subvolume-ID 5 (top level 5) = btrfsroot ("/")
   - `mount /dev/mapper/cryptroot -o subvol=/@,compress=zstd,noatime /mnt` # Mount the subvolume on which we want to install the system # adjust to your device path
   - ~~`mount /dev/mapper/cryptroot -o subvolid=256,compress=zstd,noatime /mnt`~~
 - If you did not enrypt root partition:
-  - `mount /dev/vda2 -o subvolid=/@,compress=zstd,noatime /mnt` # Mount the subvolume on which we want to install the system # adjust to your device path
+  - `mount /dev/vda2 -o subvol=/@,compress=zstd,noatime /mnt` # Mount the subvolume on which we want to install the system # adjust to your device path
 
 ### Create folders for the subvolumes (mountpoints)
 
@@ -592,11 +592,11 @@ UEFI/GPT with encryption:
 `lsblk -p`
 
 ```text
-/dev/loop0                  7:0    0 790.3M  1 loop  
+/dev/loop0                  7:0    0 790.3M  1 loop
 /dev/sr0                   11:0    1   1.1G  0 rom   /run/archiso/bootmnt
-/dev/vda                  254:0    0    25G  0 disk  
+/dev/vda                  254:0    0    25G  0 disk
 ├─/dev/vda1               254:1    0     1G  0 part  /mnt/efi
-└─/dev/vda2               254:2    0    24G  0 part  
+└─/dev/vda2               254:2    0    24G  0 part
   └─/dev/mapper/cryptroot 253:0    0    24G  0 crypt /mnt/.btrfsroot
                                                      /mnt/.snapshots
                                                      /mnt/swap
@@ -612,7 +612,7 @@ UEFI/GPT, no encryption:
 NAME   MAJ:MIN RM   SIZE RO TYPE MOUNTPOINTS
 loop0    7:0    0 790.3M  1 loop /run/archiso/airootfs
 sr0     11:0    1   1.1G  0 rom  /run/archiso/bootmnt
-vda    254:0    0    25G  0 disk 
+vda    254:0    0    25G  0 disk
 ├─vda1 254:1    0     1G  0 part /mnt/efi
 └─vda2 254:2    0    24G  0 part /mnt/.btrfsroot
                                  /mnt/.snapshots
@@ -629,9 +629,9 @@ BIOS/GPT, with encryption:
 NAME                      MAJ:MIN RM   SIZE RO TYPE  MOUNTPOINTS
 /dev/loop0                  7:0    0 790.3M  1 loop  /run/archiso/airootfs
 /dev/sr0                   11:0    1   1.1G  0 rom   /run/archiso/bootmnt
-/dev/vda                  254:0    0    35G  0 disk  
-├─/dev/vda1               254:1    0     1M  0 part  
-└─/dev/vda2               254:2    0    35G  0 part  
+/dev/vda                  254:0    0    35G  0 disk
+├─/dev/vda1               254:1    0     1M  0 part
+└─/dev/vda2               254:2    0    35G  0 part
   └─/dev/mapper/cryptroot 253:0    0    35G  0 crypt /mnt/.btrfsroot
                                                      /mnt/.snapshots
                                                      /mnt/swap
