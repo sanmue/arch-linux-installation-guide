@@ -7,7 +7,7 @@ This Arch Linux installation guide may be seen as a practical example following 
 Some examples of points covered in this guide:
 
 - UEFI/GPT (with /EFI partition) or BIOS/GPT
-- GRUB bootloader
+- GRUB bootloader and systemd-boot
 - Btrfs filesystem
 - snapper
 - snapper-rollback (AUR)
@@ -42,7 +42,8 @@ Using snapper + [snapper-rollback (AUR)](https://aur.archlinux.org/packages/snap
     - [List available devices](#list-available-devices)
     - [UEFI/GPT](#uefigpt)
       - [Create Partitions](#create-partitions)
-      - [Current partition table UEFI/GPT](#current-partition-table-uefigpt)
+      - [Current partition table UEFI/GPT and Grub bootloader](#current-partition-table-uefigpt-and-grub-bootloader)
+      - [Current partition table UEFI/GPT and systemd-boot](#current-partition-table-uefigpt-and-systemd-boot)
     - [BIOS/GPT](#biosgpt)
       - [Create partitions](#create-partitions-1)
       - [Current partition table BIOS/GPT](#current-partition-table-biosgpt)
@@ -62,18 +63,25 @@ Using snapper + [snapper-rollback (AUR)](https://aur.archlinux.org/packages/snap
     - [Mount partition to install the system](#mount-partition-to-install-the-system)
     - [Create folders for the subvolumes (mountpoints)](#create-folders-for-the-subvolumes-mountpoints)
     - [Mount the efi partition](#mount-the-efi-partition)
+    - [Mount the extended boot partition](#mount-the-extended-boot-partition)
     - [Mount the subvolumes](#mount-the-subvolumes)
     - [Mount btrfsroot for 'snapper-rollback'](#mount-btrfsroot-for-snapper-rollback)
     - [Mount options](#mount-options)
     - [Show current block device list](#show-current-block-device-list-1)
+      - [UEFI/GPT and GRUB and with encryption](#uefigpt-and-grub-and-with-encryption)
+      - [UEFI/GPT and Grub and no encryption](#uefigpt-and-grub-and-no-encryption)
+      - [UEFI/GPT and systemd-boot and no encryption](#uefigpt-and-systemd-boot-and-no-encryption)
+      - [BIOS/GPT and Grub and with encryption:](#biosgpt-and-grub-and-with-encryption)
   - [Installation](#installation)
     - [Select the mirrors](#select-the-mirrors)
     - [Install essential packages](#install-essential-packages)
   - [Configure the system](#configure-the-system)
     - [Fstab (filesystem table)](#fstab-filesystem-table)
-      - [UEFI/GPT with encryption](#uefigpt-with-encryption)
-      - [UEFI/GPT without encryption](#uefigpt-without-encryption)
-      - [BIOS/GPT with encryption](#biosgpt-with-encryption)
+      - [UEFI/GPT with encryption and Grub](#uefigpt-with-encryption-and-grub)
+      - [UEFI/GPT without encryption and with Grub](#uefigpt-without-encryption-and-with-grub)
+      - [UEFI/GPT without encryption and with systemd-boot](#uefigpt-without-encryption-and-with-systemd-boot)
+      - [BIOS/GPT with encryption and Grub](#biosgpt-with-encryption-and-grub)
+    - [=== Chroot start ===](#-chroot-start-)
     - [Chroot (Change root into new system)](#chroot-change-root-into-new-system)
     - [Time](#time)
     - [Localization](#localization)
@@ -96,8 +104,18 @@ Using snapper + [snapper-rollback (AUR)](https://aur.archlinux.org/packages/snap
         - [Unlock the encrypted root partition on boot by setting kernel parameters](#unlock-the-encrypted-root-partition-on-boot-by-setting-kernel-parameters)
       - [Installation GRUB](#installation-grub)
       - [Configuration](#configuration)
+    - [Systemd-boot](#systemd-boot)
+      - [Installing the UEFI boot manager using XBOOTLDR](#installing-the-uefi-boot-manager-using-xbootldr)
+      - [Automatic update via systemd service](#automatic-update-via-systemd-service)
+      - [Loader configuration](#loader-configuration)
+      - [Adding loaders](#adding-loaders)
+        - [Default loader and no encryption](#default-loader-and-no-encryption)
+        - [Fallback loader and no encryption](#fallback-loader-and-no-encryption)
+        - [Additional options](#additional-options)
+      - [Check config](#check-config)
   - [SET PASSWORD FOR root](#set-password-for-root)
   - [Reboot](#reboot)
+    - [=== Chroot end ===](#-chroot-end-)
   - [=== Post-installation steps ===](#-post-installation-steps-)
   - [System administration](#system-administration)
     - [Users and groups](#users-and-groups)
@@ -278,6 +296,7 @@ ssh from your computer into the machine to be installed:
 - <https://wiki.archlinux.org/title/Partitioning#Choosing_between_GPT_and_MBR>
 - <https://wiki.archlinux.org/title/EFI_system_partition>
 - <https://wiki.archlinux.org/title/GRUB>
+- https://wiki.archlinux.org/title/Systemd-boot#Installation_using_XBOOTLDR
 - <https://wiki.archlinux.org/title/Zram#Usage_as_swap>
 
 > :memo: **Note:**
@@ -308,6 +327,7 @@ I/O size (minimum/optimal): 512 bytes / 512 bytes
 
 - `,` means: press enter to accept the default value
 
+Grub and systemd-boot:
 ```text
 g           # gpt partition table
 
@@ -315,7 +335,18 @@ n
 ,, +1G      # efi partition, size 1 GB
 t           # change type
 1           # 'EFI System'
+```
 
+only for systemd-boot (using XBOOTLDR):
+```text
+n
+,, +1500M   # extended boot partition, size 1,5 GB
+t           # change type
+142         # 'Linux extended boot'
+```
+
+Grub and systemd-boot:
+```text
 n
 ,,,         # system partition (takes entire rest of the disk)
 t           # change type
@@ -326,7 +357,7 @@ p           # print current partition table
 w           # write to disk
 ```
 
-#### Current partition table UEFI/GPT
+#### Current partition table UEFI/GPT and Grub bootloader
 
 ```text
 Disk /dev/vda: 25 GiB, 26843545600 bytes, 52428800 sectors
@@ -336,6 +367,15 @@ Disk identifier: 1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA
 Device       Start      End  Sectors Size Type
 /dev/vda1     2048  2099199  2097152   1G EFI System
 /dev/vda2  2099200 52426751 50327552  24G Linux root (x86-64)
+```
+
+#### Current partition table UEFI/GPT and systemd-boot
+
+```text
+Device       Start       End  Sectors  Size Type
+/dev/vda1     2048   2099199  2097152    1G EFI System
+/dev/vda2  2099200   5171199  3072000  1.5G Linux extended boot
+/dev/vda3  5171200 104855551 99684352 47.5G Linux root (x86-64)
 ```
 
 ### BIOS/GPT
@@ -451,12 +491,14 @@ With current setup, when starting your machine you will be asked twice for a pas
 
 - EFI partition (only UEFI boot mode, skip for BIOS boot mode)
   - `mkfs.fat -F32 -n EFI /dev/vda1` # EFI partition # adjust to your device path
+- Extended boot partition (systemd-boot using XBOOTLDR):
+  - `mkfs.fat -F32 -n XBOOT /dev/vda2` # Extended boot partition # adjust to your device path
 - root partition
   - if you enrypted the root partition:
     - `mkfs.btrfs -L ROOT /dev/mapper/cryptroot`
     - the device `/dev/mapper/cryptroot` can then be mounted like any other partition
   - if you did not encrypt the root partition:
-    - `mkfs.btrfs -L ROOT /dev/vda2` # main partition # adjust to your device path
+    - `mkfs.btrfs -L ROOT /dev/vda3` # main partition # adjust to your device path, e.g. /dev/vda2 (for Grub bootloader in our example)
 
 ## Btrfs subvolumes
 
@@ -534,9 +576,10 @@ Subvolume-ID 5 (top level 5) = btrfsroot ("/")
 ### Create folders for the subvolumes (mountpoints)
 
 - in a single command:
-  - `mkdir -p /mnt/{efi,home,var/log,swap,.snapshots,.btrfsroot}`
+  - `mkdir -p /mnt/{efi,boot,home,var/log,swap,.snapshots,.btrfsroot}`
 - or in individual commands:
   - `mkdir -p /mnt/efi`
+  - `mkdir -p /mnt/boot` # only for systemd-boot using XBOOTLDR
   - `mkdir -p /mnt/home`
   - `mkdir -p /mnt/var/log`
   - `mkdir -p /mnt/swap`
@@ -550,18 +593,26 @@ only UEFI, skip if BIOS boot mode
 
 - `mount /dev/vda1 /mnt/efi` # adjust to your device path
 
+### Mount the extended boot partition
+
+only UEFI and systemd-boot using XBOOTLDR, skip if BIOS boot mode or Grub bootloader
+
+- `mount /dev/vda2 /mnt/boot` # adjust to your device path
+
 ### Mount the subvolumes
 
 Adjust to your device path.
 
 > :warning: If root partition is encrypted:
 >
-> - Replace `/dev/vda2` with `/dev/mapper/cryptroot`
+> - Replace `/dev/vda2` / `/dev/vda3` with `/dev/mapper/cryptroot`
 >   - `cryptroot` = device mapper name used for enryption / opening enrypted root partition
 
 - home
-  - encryption: `mount /dev/mapper/cryptroot -o subvol=/@home,compress=zstd,noatime /mnt/home`
-  - no encryption: `mount /dev/vda2 -o subvol=/@home,compress=zstd,noatime /mnt/home`
+  - encryption, Grub: `mount /dev/mapper/cryptroot -o subvol=/@home,compress=zstd,noatime /mnt/home`
+  - no encryption, Grub: `mount /dev/vda2 -o subvol=/@home,compress=zstd,noatime /mnt/home`
+  - no encryption, systemd-boot: `mount /dev/vda3 -o subvol=/@home,compress=zstd,noatime /mnt/home`
+    - do the same for the others for systemd-boot using XBOOTLDR: replace /dev/vda2 with /dev/vda3
 - log files
   - encryption: `mount /dev/mapper/cryptroot -o subvol=/@varlog,compress=zstd,noatime /mnt/var/log`
   - no encryption: `mount /dev/vda2 -o subvol=/@varlog,compress=zstd,noatime /mnt/var/log`
@@ -580,6 +631,7 @@ Adjust to your device path.
 - encryption: `mount /dev/mapper/cryptroot -o subvol=/,compress=zstd,noatime /mnt/.btrfsroot`
 - ~~encryption: `mount /dev/mapper/cryptroot -o subvolid=5,compress=zstd,noatime /mnt/.btrfsroot`~~
 - no encryption: `mount /dev/vda2 -o subvol=/,compress=zstd,noatime /mnt/.btrfsroot`
+- no encryption, systemd-boot: `mount /dev/vda3 -o subvol=/,compress=zstd,noatime /mnt/.btrfsroot`
 
 ### Mount options
 
@@ -588,7 +640,8 @@ Adjust to your device path.
 
 ### Show current block device list
 
-UEFI/GPT with encryption:
+#### UEFI/GPT and GRUB and with encryption
+
 `lsblk -p`
 
 ```text
@@ -605,7 +658,8 @@ UEFI/GPT with encryption:
                                                      /mnt
 ```
 
-UEFI/GPT, no encryption:
+#### UEFI/GPT and Grub and no encryption
+
 `lsblk`
 
 ```text
@@ -622,7 +676,27 @@ vda    254:0    0    25G  0 disk
                                  /mnt
 ```
 
-BIOS/GPT, with encryption:
+#### UEFI/GPT and systemd-boot and no encryption
+
+`lsblk`
+
+```text
+NAME   MAJ:MIN RM  SIZE RO TYPE MOUNTPOINTS
+loop0    7:0    0 790.3M  1 loop /run/archiso/airootfs
+sr0     11:0    1   1.1G  0 rom  /run/archiso/bootmnt 
+vda    254:0    0   50G  0 disk 
+├─vda1 254:1    0    1G  0 part /efi
+├─vda2 254:2    0  1.5G  0 part /boot
+└─vda3 254:3    0 47.5G  0 part /var/log
+                                /home
+                                /swap
+                                /.btrfsroot
+                                /.snapshots
+                                /
+```
+
+#### BIOS/GPT and Grub and with encryption:
+
 `lsblk -p`
 
 ```text
@@ -710,7 +784,7 @@ All packages above together:
 > :warning: The UUIDs shown at 'with enryption' or 'without encrypion' would normally match.
 > They are only different because it was a seperate new installation both times with new random UUIDs generated.
 
-#### UEFI/GPT with encryption
+#### UEFI/GPT with encryption and Grub
 
 ```text
 # <file system> <dir> <type> <options> <dump> <pass>
@@ -735,10 +809,11 @@ UUID=7986ecc9-7656-4ccc-814f-e58f20e241a5 /.snapshots btrfs      rw,noatime,comp
 # /dev/mapper/cryptroot LABEL=ROOT
 UUID=7986ecc9-7656-4ccc-814f-e58f20e241a5 /.btrfsroot btrfs      rw,noatime,compress=zstd:3,space_cache=v2,subvolid=5,subvol=/ 0 0
 
+# Example with swapfile:
 /swap/swapfile       none       swap       defaults   0 0
 ```
 
-#### UEFI/GPT without encryption
+#### UEFI/GPT without encryption and with Grub
 
 ```text
 # <file system> <dir> <type> <options> <dump> <pass>
@@ -763,10 +838,43 @@ UUID=a552a029-4972-4b3a-b2cd-21ddb5e2e870 /.snapshots btrfs      rw,noatime,comp
 # /dev/vda2 LABEL=ROOT
 UUID=a552a029-4972-4b3a-b2cd-21ddb5e2e870 /.btrfsroot btrfs      rw,noatime,compress=zstd:3,discard=async,space_cache=v2,subvolid=5,subvol=/ 0 0
 
+# Example with swapfile:
 /swap/swapfile       none       swap       defaults   0 0
 ```
 
-#### BIOS/GPT with encryption
+#### UEFI/GPT without encryption and with systemd-boot
+
+```text
+# <file system> <dir> <type> <options> <dump> <pass>
+# /dev/vda3 LABEL=ROOT
+UUID=6eee7850-fde0-4cff-912a-d45d3c673313	/         	btrfs     	rw,noatime,compress=zstd:3,discard=async,space_cache=v2,subvol=/@	0 0
+
+# /dev/vda1 LABEL=EFI
+UUID=A5B9-FE11      	/efi      	vfat      	rw,relatime,fmask=0022,dmask=0022,codepage=437,iocharset=ascii,shortname=mixed,utf8,errors=remount-ro	0 2
+
+# /dev/vda2 LABEL=XBOOT
+UUID=A673-7346      	/boot     	vfat      	rw,relatime,fmask=0022,dmask=0022,codepage=437,iocharset=ascii,shortname=mixed,utf8,errors=remount-ro	0 2
+
+# /dev/vda3 LABEL=ROOT
+UUID=6eee7850-fde0-4cff-912a-d45d3c673313	/home     	btrfs     	rw,noatime,compress=zstd:3,discard=async,space_cache=v2,subvol=/@home	0 0
+
+# /dev/vda3 LABEL=ROOT
+UUID=6eee7850-fde0-4cff-912a-d45d3c673313	/var/log  	btrfs     	rw,noatime,compress=zstd:3,discard=async,space_cache=v2,subvol=/@varlog	0 0
+
+# /dev/vda3 LABEL=ROOT
+UUID=6eee7850-fde0-4cff-912a-d45d3c673313	/swap     	btrfs     	rw,noatime,compress=zstd:3,discard=async,space_cache=v2,subvol=/@swap	0 0
+
+# /dev/vda3 LABEL=ROOT
+UUID=6eee7850-fde0-4cff-912a-d45d3c673313	/.snapshots	btrfs     	rw,noatime,compress=zstd:3,discard=async,space_cache=v2,subvol=/@snapshots	0 0
+
+# /dev/vda3 LABEL=ROOT
+UUID=6eee7850-fde0-4cff-912a-d45d3c673313	/.btrfsroot	btrfs     	rw,noatime,compress=zstd:3,discard=async,space_cache=v2,subvol=/	0 0
+
+# Example with swapfile:
+/swap/swapfile       none       swap       defaults   0 0
+```
+
+#### BIOS/GPT with encryption and Grub
 
 ```text
 # <file system> <dir> <type> <options> <dump> <pass>
@@ -788,8 +896,11 @@ UUID=53791c43-d7ad-48fd-bbc9-8f15451d94f0 /.snapshots btrfs      rw,noatime,comp
 # /dev/mapper/cryptroot LABEL=ROOT
 UUID=53791c43-d7ad-48fd-bbc9-8f15451d94f0 /.btrfsroot btrfs      rw,noatime,compress=zstd:3,space_cache=v2,subvolid=5,subvol=/ 0 0
 
+# Example with swapfile:
 /swap/swapfile       none       swap       defaults   0 0
 ```
+
+### === Chroot start ===
 
 ### Chroot (Change root into new system)
 
@@ -1025,6 +1136,80 @@ Create config file:
 
 - `grub-mkconfig -o /boot/grub/grub.cfg` # Generate the main configuration file
 
+### Systemd-boot
+
+`systemd-boot` is shipped with the systemd package which is a dependency of the `base` meta package, so no additional packages need to be installed manually.
+
+#### Installing the UEFI boot manager using XBOOTLDR
+
+- <https://wiki.archlinux.org/title/Systemd-boot#Installation_using_XBOOTLDR>
+
+`bootctl --esp-path=/efi --boot-path=/boot install`
+
+#### Automatic update via systemd service
+
+- <https://wiki.archlinux.org/title/Systemd-boot#systemd_service>
+
+`systemctl enable systemd-boot-update.service`
+
+#### Loader configuration
+
+- <https://wiki.archlinux.org/title/Systemd-boot#Loader_configuration>
+&nbsp;
+
+- `vim /efi/loader/loader.conf`
+
+```text
+default  arch.conf
+timeout  4
+console-mode max
+editor   no
+```
+
+#### Adding loaders
+
+- <https://wiki.archlinux.org/title/Systemd-boot#Adding_loaders>
+- <https://uapi-group.org/specifications/specs/boot_loader_specification/>
+
+##### Default loader and no encryption
+
+`vim /boot/loader/entries/arch.conf`
+
+```text
+title      Arch Linux
+machine-id 46ccd99c37fa4e3cb5bfe076152df18f
+linux      /vmlinuz-linux
+initrd     /initramfs-linux.img
+options    rootflags=subvol=/@ root=UUID=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA rw
+```
+
+##### Fallback loader and no encryption
+
+`vim /boot/loader/entries/arch-fallback.conf`
+
+```text
+title      Arch Linux (fallback initramfs)
+machine-id 46ccd99c37fa4e3cb5bfe076152df18f
+linux      /vmlinuz-linux
+initrd     /initramfs-linux-fallback.img
+options    nowatchdog rootflags=subvol=/@ root=UUID=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA rw
+```
+
+##### Additional options
+in `/boot/loader/entries/arch.conf` and `/boot/loader/entries/arch-fallback.conf` (separated by space):
+- `nvme_load=YES` # if you have an NVME SSD
+- `nowatchdog`
+  - <https://wiki.archlinux.org/title/Improving_performance#Watchdogs>
+  - ok to set for non-critical Home / Desktop use case
+- `systemd.machine_id=<MACHINEID>` # e.g. systemd.machine_id=46ccd99c37fa4e3cb5bfe076152df18f
+
+#### Check config
+
+> :memo: **Tip:**
+> After changing the configuration, run `bootctl` (without any arguments) to make sure that systemd-boot will be able to parse it properly.
+
+- `bootctl`
+
 ## SET PASSWORD FOR root
 
 - `passwd`
@@ -1034,6 +1219,8 @@ Create config file:
 ## Reboot
 
 > :warning: Check:  password set for root ?
+
+### === Chroot end ===
 
 - `exit` # Exit the chroot environment
 - (`swapoff /mnt/swap/swapfile`)
