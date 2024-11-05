@@ -1017,8 +1017,10 @@ The next steps to do are:
 
 ## Initramfs (Create initial ramdisk environment)
 
+- <https://wiki.archlinux.org/title/Mkinitcpio>
 - <https://wiki.archlinux.org/title/Dm-crypt/Encrypting_an_entire_system#Configuring_mkinitcpio>
 - <https://wiki.archlinux.org/title/Dm-crypt/System_configuration#mkinitcpio>
+- <https://wiki.archlinux.org/title/Dm-crypt/Encrypting_an_entire_system#Configuring_mkinitcpio>
 - <https://wiki.archlinux.org/title/Mkinitcpio#Common_hooks>
 - <https://archlinux.org/packages/?name=cryptsetup>
 - <https://wiki.archlinux.org/title/Dm-crypt/Specialties#The_encrypt_hook_and_multiple_disks>
@@ -1044,10 +1046,18 @@ Skip this step, if you no not use enryption or do not use a keyfile.
 
 For LVM, **system** encryption or RAID, modify mkinitcpio.conf(5) (`/etc/mkinitcpio.conf`) and recreate the initramfs image.
 
+- `vim /etc/mkinitcpio.conf`
+- No Encryption:
+  - Systemd-boot:
+    - replace default Hooks: `udev` with `systemd` and `keymap consolefont` with `sd-vconsole`
+    - results in e.g.: `HOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block filesystems fsck)`
 - Encryption (LUKS):
-  - `vim /etc/mkinitcpio.conf`
-  - add to `HOOKS`: **encrypt** before `filesystems`
-    - results in e.g.: `HOOKS=(base udev autodetect microcode modconf kms keyboard keymap consolefont block` **encrypt** `filesystems fsck)`
+  - Grub:
+    - add to `HOOKS`: **encrypt** before `filesystems`
+      - results in e.g.: `HOOKS=(base udev autodetect microcode modconf kms keyboard keymap consolefont block` **encrypt** `filesystems fsck)`
+  - Systemd-boot:
+    - add to `HOOKS`: **sd-encrypt** before `filesystems`
+    - results in e.g.: `HOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block` **sd-encrypt** `filesystems fsck)`
 
 ### Creating a new initramfs
 
