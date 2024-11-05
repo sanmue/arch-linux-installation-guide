@@ -1036,7 +1036,9 @@ The next steps to do are:
 
 - <https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#With_a_keyfile_embedded_in_the_initramfs>
 
-Skip this step, if you no not use enryption or do not use a keyfile.
+Skip this step
+- if you no not use enryption or 
+- do not want to use a keyfile (e.g. when using systemd-boot in this guide)
 
 - Include the key in mkinitcpio's FILES array:
   - `vim /etc/mkinitcpio.conf`
