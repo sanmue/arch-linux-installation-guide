@@ -1048,16 +1048,18 @@ For LVM, **system** encryption or RAID, modify mkinitcpio.conf(5) (`/etc/mkinitc
 
 - `vim /etc/mkinitcpio.conf`
 - No Encryption:
+  - Grub:
+    - `HOOKS`: default should be ok, nothing to do
   - Systemd-boot:
-    - replace default Hooks: `udev` with `systemd` and `keymap consolefont` with `sd-vconsole`
-    - results in e.g.: `HOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block filesystems fsck)`
+    - `HOOKS`: replace `udev` with `systemd` and `keymap consolefont` with `sd-vconsole`
+      - results in e.g.: `HOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block filesystems fsck)`
 - Encryption (LUKS):
   - Grub:
-    - add to `HOOKS`: **encrypt** before `filesystems`
+    - `HOOKS`: add **encrypt** before `filesystems`
       - results in e.g.: `HOOKS=(base udev autodetect microcode modconf kms keyboard keymap consolefont block` **encrypt** `filesystems fsck)`
   - Systemd-boot:
-    - add to `HOOKS`: **sd-encrypt** before `filesystems`
-    - results in e.g.: `HOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block` **sd-encrypt** `filesystems fsck)`
+    - `HOOKS`: add **sd-encrypt** before `filesystems`
+      - results in e.g.: `HOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block` **sd-encrypt** `filesystems fsck)`
 
 ### Creating a new initramfs
 
