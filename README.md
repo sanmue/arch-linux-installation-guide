@@ -52,7 +52,7 @@ Using snapper + [snapper-rollback (AUR)](https://aur.archlinux.org/packages/snap
       - [Encrypting our root partition](#encrypting-our-root-partition)
       - [Open the LUKS encrypted root partition](#open-the-luks-encrypted-root-partition)
       - [Show current block device list](#show-current-block-device-list)
-      - [Note regarding passwort input at boot](#note-regarding-passwort-input-at-boot)
+      - [Note regarding password input at boot](#note-regarding-password-input-at-boot)
   - [Format partitions](#format-partitions)
   - [Btrfs subvolumes](#btrfs-subvolumes)
     - [Mount root partiton](#mount-root-partiton)
@@ -61,7 +61,7 @@ Using snapper + [snapper-rollback (AUR)](https://aur.archlinux.org/packages/snap
     - [Unmount root subvolume](#unmount-root-subvolume)
   - [Mount the file systems](#mount-the-file-systems)
     - [Mount partition to install the system](#mount-partition-to-install-the-system)
-    - [Create folders for the subvolumes (mountpoints)](#create-folders-for-the-subvolumes-mountpoints)
+    - [Create folders for the subvolumes and partitions (mountpoints)](#create-folders-for-the-subvolumes-and-partitions-mountpoints)
     - [Mount the efi partition](#mount-the-efi-partition)
     - [Mount the extended boot partition](#mount-the-extended-boot-partition)
     - [Mount the subvolumes](#mount-the-subvolumes)
@@ -75,8 +75,12 @@ Using snapper + [snapper-rollback (AUR)](https://aur.archlinux.org/packages/snap
   - [Installation](#installation)
     - [Select the mirrors](#select-the-mirrors)
     - [Install essential packages](#install-essential-packages)
+      - [Minimal package install](#minimal-package-install)
+      - [Extended package install](#extended-package-install)
+      - [Summarized package list](#summarized-package-list)
   - [Configure the system](#configure-the-system)
     - [Fstab (filesystem table)](#fstab-filesystem-table)
+      - [Create fstab](#create-fstab)
       - [UEFI/GPT with encryption and Grub](#uefigpt-with-encryption-and-grub)
       - [UEFI/GPT without encryption and with Grub](#uefigpt-without-encryption-and-with-grub)
       - [UEFI/GPT without encryption and with systemd-boot](#uefigpt-without-encryption-and-with-systemd-boot)
@@ -99,7 +103,7 @@ Using snapper + [snapper-rollback (AUR)](https://aur.archlinux.org/packages/snap
   - [Boot loader](#boot-loader)
     - [Grub](#grub)
       - [Config default grub](#config-default-grub)
-        - [Enrypted the root partition](#enrypted-the-root-partition)
+        - [Encrypted the root partition](#encrypted-the-root-partition)
         - [Preparing next step: get UUID of encrypted partition](#preparing-next-step-get-uuid-of-encrypted-partition)
         - [Unlock the encrypted root partition on boot by setting kernel parameters](#unlock-the-encrypted-root-partition-on-boot-by-setting-kernel-parameters)
       - [Installation GRUB](#installation-grub)
@@ -113,9 +117,11 @@ Using snapper + [snapper-rollback (AUR)](https://aur.archlinux.org/packages/snap
         - [Fallback loader](#fallback-loader)
         - [Additional options](#additional-options)
       - [Check config](#check-config)
-  - [SET PASSWORD FOR root](#set-password-for-root)
+  - [Set password for root user](#set-password-for-root-user)
   - [Reboot](#reboot)
     - [=== Chroot end ===](#-chroot-end-)
+    - [Optionally manually unmount all the partitions](#optionally-manually-unmount-all-the-partitions)
+    - [Restart the machine](#restart-the-machine)
   - [=== Post-installation steps ===](#-post-installation-steps-)
   - [System administration](#system-administration)
     - [Users and groups](#users-and-groups)
@@ -294,7 +300,8 @@ ssh from your computer into the machine to be installed:
 - <https://wiki.archlinux.org/title/Partitioning#Choosing_between_GPT_and_MBR>
 - <https://wiki.archlinux.org/title/EFI_system_partition>
 - <https://wiki.archlinux.org/title/GRUB>
-- https://wiki.archlinux.org/title/Systemd-boot#Installation_using_XBOOTLDR
+- <https://wiki.archlinux.org/title/Systemd-boot#Installation_using_XBOOTLDR>
+- <https://uapi-group.org/specifications/specs/boot_loader_specification/#the-partitions>
 - <https://wiki.archlinux.org/title/Zram#Usage_as_swap>
 
 > :memo: **Note:**
@@ -325,7 +332,7 @@ I/O size (minimum/optimal): 512 bytes / 512 bytes
 
 - `,` means: press enter to accept the default value
 
-Grub and systemd-boot:
+**Grub and systemd-boot:**
 ```text
 g           # gpt partition table
 
@@ -335,7 +342,7 @@ t           # change type
 1           # 'EFI System'
 ```
 
-only for systemd-boot (using XBOOTLDR):
+**Only for systemd-boot when using XBOOTLDR:**
 ```text
 n
 ,, +1500M   # extended boot partition, size 1,5 GB
@@ -344,7 +351,7 @@ t           # change type
 142         # 'Linux extended boot'
 ```
 
-Grub and systemd-boot:
+**Grub and systemd-boot:**
 ```text
 n
 ,,,         # system partition (takes entire rest of the disk)
@@ -443,8 +450,10 @@ Device     Start      End  Sectors Size Type
 #### Encrypting our root partition
 
 - <https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#Encrypting_devices_with_LUKS_mode>
-- Systemd-boot: `cryptsetup luksFormat /dev/vda2`
-- Grub: `cryptsetup luksFormat --pbkdf pbkdf2 /dev/vda2`
+- **Systemd-boot**:
+  - `cryptsetup luksFormat /dev/vda2`
+- **Grub**:
+  - `cryptsetup luksFormat --pbkdf pbkdf2 /dev/vda2`
   - <https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#Encryption_options_for_LUKS_mode>
     - Argon2id (cryptsetup default) and Argon2i PBKDFs are not supported ([GRUB bug #59409](https://savannah.gnu.org/bugs/?59409)), only PBKDF2 is
     - as of 10/2024
@@ -455,15 +464,24 @@ Device     Start      End  Sectors Size Type
 
 - <https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#Unlocking/Mapping_LUKS_partitions_with_the_device_mapper>
 - `cryptsetup open /dev/vda2 root`
-  - Once opened, the root partition device address would be `/dev/mapper/root` instead of the partition `/dev/vda2`; device mapper name is: `root`
+  - Once opened, the root partition device address would be `/dev/mapper/root` (device mapper name is `root`) instead of the partition `/dev/vda2`.
   - you should make a note, we will need this info later
 
 > :warning: **Encryption: device mapper name and root partition label**
-> I used to set device mapper name to `cryptroot`.
-> But systemd-boot seems to set to `root` (and seems to like the partition label to be named corresponding).
-> To harmonize the naming for `Grub` und `systemd-boot` I changed the mapper name for both to `root` and the root partition label (see also Format partitions).
+> - <https://uapi-group.org/specifications/specs/discoverable_partitions_specification/#defined-partition-type-uuids>
+>   - On systems with matching architecture, the first partition with this type UUID on the disk containing the active EFI ESP is automatically mounted to the root directory `/`.
+>   - If the partition is **encrypted** with LUKS or has dm-verity integrity data ..., the device mapper file will be named **`/dev/mapper/root`**.
+> - <https://uapi-group.org/specifications/specs/discoverable_partitions_specification/#why-are-you-taking-my-etcfstab-away>
+> - <https://wiki.archlinux.org/title/Systemd#systemd.mount_-_mounting>
+> - <https://man.archlinux.org/man/systemd.mount.5#FSTAB>
+> - <https://man.archlinux.org/man/systemd-fstab-generator.8.en>
+> 
+> I used to set the device mapper name to `cryptroot`.
+> Systemd-boot sets device mapper name to `root` by default (and seems to like the partition label to be named corresponding, if set).
+> To harmonize the naming I changed the device mapper name when opening the encrypted root for `Grub` und `systemd-boot` to `root` and the root partition label (see: Format partitions).
 >
-> When setting device-mapper name (and root partition label) to `cryptroot`, systemd-boot still works, but it looks a bit ugly:
+> Remark:
+> When using device-mapper name and root partition label `cryptroot`, systemd-boot still works, but it looks a bit ugly:
 > 
 > **fstab:**
 > ```text
@@ -507,16 +525,17 @@ NAME                      MAJ:MIN RM   SIZE RO TYPE  MOUNTPOINTS
   └─/dev/mapper/root 253:0    0    24G  0 crypt
 ```
 
-#### Note regarding passwort input at boot
+#### Note regarding password input at boot
 
-Grub: With current setup, when starting your machine you will be asked twice for a password for decrypting: 1x bootloader, 1x encrypted root partition.
+**Grub:** When not using a keyfile to decrypt the encrypted root partition: when starting your machine you will be asked twice for a password for decrypting: 1x bootloader, 1x encrypted root partition.
+**Systemd-boot:** We do not use a keyfile in this guide (/efi (and /boot for XBOOTLDR) partition are not encrypted). You will currently only be asked once for the password to decrypt the encrypted root partition.
 
 > :memo: **keyfile**
 > You can generate and add a keyfile to [unlock encrypted root at boot](https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#With_a_keyfile_embedded_in_the_initramfs), which has to be accessible only by root user.
 >
-> The steps will be described at a later point (for Grub), see: 'Initramfs (Create initial ramdisk environment)' and 'BOOT LOADER -> GRUB', when in chroot environment.
+> The steps will be described at a later point in this guide (for Grub), see: 'Initramfs (Create initial ramdisk environment)', and 'BOOT LOADER -> GRUB' when in chroot environment.
 >
-> Since you will still have to enter a secure passphrase once on boot, and `/boot` is encrypted (on encrypted root partition), and for UEFI: ESP ist mounted to `/efi`, there should be no real security disadvantages.
+> Grub: Since you will still have to enter a secure passphrase once on boot, and `/boot` is encrypted (on encrypted root partition), and for UEFI: ESP ist mounted to `/efi`, there should be no real security disadvantages.
 
 - Unlocking the root partition at boot, with a keyfile embedded in the initramfs
   - <https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#With_a_keyfile_embedded_in_the_initramfs>
@@ -532,14 +551,12 @@ Grub: With current setup, when starting your machine you will be asked twice for
 
 - EFI partition (only UEFI boot mode, skip for BIOS boot mode)
   - `mkfs.fat -F32 -n EFI /dev/vda1` # EFI partition # adjust to your device path
-- Extended boot partition (systemd-boot using XBOOTLDR):
+- Extended boot partition (only for systemd-boot using XBOOTLDR):
   - `mkfs.fat -F32 -n XBOOTLDR /dev/vda2` # Extended boot partition # adjust to your device path
-- root partition
-  - if you enrypted the root partition:
-    - `mkfs.btrfs -L ROOT /dev/mapper/root`
+- Root partition
+  - encrypted: `mkfs.btrfs -L ROOT /dev/mapper/root`
     - the device `/dev/mapper/root` can then be mounted like any other partition
-  - if you did not encrypt the root partition:
-    - `mkfs.btrfs -L ROOT /dev/vda3` # main partition # adjust to your device path, e.g. /dev/vda2 (for Grub bootloader in our example)
+  - not encrypted: `mkfs.btrfs -L ROOT /dev/vda3` # main partition # adjust to your device path, e.g. /dev/vda2 (for Grub bootloader in our example)
 
 ## Btrfs subvolumes
 
@@ -551,10 +568,8 @@ Grub: With current setup, when starting your machine you will be asked twice for
 
 ### Mount root partiton
 
-- if you enrypted the root partition:
-  - `mount /dev/mapper/root /mnt` # mount btrfs root # adjust to your device path
-- If you did not enrypt root partition:
-  - `mount /dev/vda2 /mnt` # mount btrfs root # adjust to your device path
+- encrypted: `mount /dev/mapper/root /mnt` # mount btrfs root
+- not encrypted: `mount /dev/vda2 /mnt` # mount btrfs root # adjust to your device path
 
 ### Create subvolumes
 
@@ -563,16 +578,15 @@ Grub: With current setup, when starting your machine you will be asked twice for
 
 - in a single command:
   - `btrfs subvolume create /mnt/{@,@home,@varlog,@swap,@snapshots}`
-- or individual:
+- or individual commands:
   - `btrfs subvolume create /mnt/@` # root
   - `btrfs subvolume create /mnt/@home` # home folder
   - `btrfs subvolume create /mnt/@varlog` # log files
   - `btrfs subvolume create /mnt/@swap` # for swap file # can be skipped if you want to have only zram
   - `btrfs subvolume create /mnt/@snapshots` # snapshot folder
-- ... and others:
+- ... and others you may want to create:
 
 > **Tip:**
->
 > - Consider creating subvolumes for other directories that contain data you do not want to include in snapshots and rollbacks of the @ subvolume, such as `/var/cache`, `/var/spool`, `/var/tmp`, `/var/lib/machines` (systemd-nspawn), `/var/lib/docker` (Docker), `/var/lib/postgres` (PostgreSQL), and other data directories under `/var/lib/`.
 >   - e.g.: `/var/lib/libvirt/images` (Virtual machine images), `/srv`, `/tmp`, `/opt`
 > - But the pacman database in `/var/lib/pacman` must stay on the root subvolume (@).
@@ -609,13 +623,12 @@ Subvolume-ID 5 (top level 5) = btrfsroot ("/")
 
 ### Mount partition to install the system
 
-- if you enrypted the root partition:
-  - `mount /dev/mapper/root -o subvol=/@,compress=zstd,noatime /mnt` # Mount the subvolume on which we want to install the system # adjust to your device path
-  - ~~`mount /dev/mapper/root -o subvolid=256,compress=zstd,noatime /mnt`~~
-- If you did not enrypt root partition:
-  - `mount /dev/vda2 -o subvol=/@,compress=zstd,noatime /mnt` # Mount the subvolume on which we want to install the system # adjust to your device path
+- root partition:
+  - encrypted: `mount /dev/mapper/root -o subvol=/@,compress=zstd,noatime /mnt` # Mount the subvolume on which we want to install the system # adjust to your device path
+    - ~~`mount /dev/mapper/root -o subvolid=256,compress=zstd,noatime /mnt`~~ do not use subvolid
+  - not encrypted: `mount /dev/vda2 -o subvol=/@,compress=zstd,noatime /mnt` # Mount the subvolume on which we want to install the system # adjust to your device path
 
-### Create folders for the subvolumes (mountpoints)
+### Create folders for the subvolumes and partitions (mountpoints)
 
 - in a single command:
   - `mkdir -p /mnt/{efi,boot,home,var/log,swap,.snapshots,.btrfsroot}`
@@ -627,55 +640,56 @@ Subvolume-ID 5 (top level 5) = btrfsroot ("/")
   - `mkdir -p /mnt/swap`
   - `mkdir -p /mnt/.snapshots`
   - `mkdir -p /mnt/.btrfsroot` # for 'snapper-rollback'
-- ... and for all other subvolumes created above
+- ... and for all other subvolumes and partitions you may have created
 
 ### Mount the efi partition
 
-only UEFI, skip if BIOS boot mode
+Only UEFI, skip if BIOS boot mode
 
+- `mount /dev/vda1 -o fmask=0137,dmask=0027 /mnt/efi` # adjust to your device path
+  - mount options (`-o`): -> `drwxr-x---`
 - ~~`mount /dev/vda1 /mnt/efi` # adjust to your device path~~
-- `mount /dev/vda1 -o fmask=0137,dmask=0027 /mnt/efi` # adjust to your device path # drwxr-x---
 
 ### Mount the extended boot partition
 
-only UEFI and systemd-boot using XBOOTLDR, skip if BIOS boot mode or Grub bootloader
+Only systemd-boot using XBOOTLDR, skip if BIOS boot mode or Grub bootloader
 
-- ~~`mount /dev/vda2 /mnt/boot` # adjust to your device path~~
 - `mount /dev/vda2 -o fmask=0137,dmask=0027 /mnt/boot` # adjust to your device path # drwxr-x---
+  - mount options (`-o`): -> `drwxr-x---`
+- ~~`mount /dev/vda2 /mnt/boot` # adjust to your device path~~
 
 ### Mount the subvolumes
 
 Adjust to your device path.
 
-> :warning: **Systemd-boot with extended boot partition:**
+> :warning: **Systemd-boot with extended boot partition (XBOOTLDR):**
 > Since we have one more partition in our example, replace `/dev/vda2` with `/dev/vda3`
 >
-> example mounting `home` subvolume (no encryption):
-> `mount `**/dev/vda3**` -o subvol=/@home,compress=zstd,noatime /mnt/home`
+> Example mounting `home` subvolume (no encryption): `mount `**/dev/vda3**` -o subvol=/@home,compress=zstd,noatime /mnt/home`
 
 > :warning: **If root partition is encrypted:**
-> Replace `/dev/vda2` (root partition) with `/dev/mapper/root` (`root` = device mapper name used for enryption / opening enrypted root partition)
+> Replace `/dev/vda2` (root partition) with `/dev/mapper/root` (`root` = device mapper name used for enryption / opening encrypted root partition)
 > The mount command ist the same for Grub and systemd-boot.
 
 - home
   - encryption: `mount /dev/mapper/root -o subvol=/@home,compress=zstd,noatime /mnt/home`
   - no encryption (Grub): `mount /dev/vda2 -o subvol=/@home,compress=zstd,noatime /mnt/home`
-  - no encryption (systemd-boot): `mount /dev/vda3 -o subvol=/@home,compress=zstd,noatime /mnt/home`
+  - no encryption (systemd-boot and XBOOTLDR): `mount /dev/vda3 -o subvol=/@home,compress=zstd,noatime /mnt/home`
 - log files
   - encryption: `mount /dev/mapper/root -o subvol=/@varlog,compress=zstd,noatime /mnt/var/log`
   - no encryption (Grub): `mount /dev/vda2 -o subvol=/@varlog,compress=zstd,noatime /mnt/var/log`
-  - no encryption (systemd-boot): `mount /dev/vda3 -o subvol=/@varlog,compress=zstd,noatime /mnt/var/log`
+  - no encryption (systemd-boot and XBOOTLDR): `mount /dev/vda3 -o subvol=/@varlog,compress=zstd,noatime /mnt/var/log`
 - swap file:
   - encryption: `mount /dev/mapper/root -o subvol=/@swap,compress=zstd,noatime /mnt/swap`
   - no encryption (Grub): `mount /dev/vda2 -o subvol=/@swap,compress=zstd,noatime /mnt/swap`
-  - no encryption (systemd-boot): `mount /dev/vda3 -o subvol=/@swap,compress=zstd,noatime /mnt/swap`
+  - no encryption (systemd-boot and XBOOTLDR): `mount /dev/vda3 -o subvol=/@swap,compress=zstd,noatime /mnt/swap`
   - create and activate swap:
-    - `btrfs filesystem mkswapfile --size 4g --uuid clear /mnt/swap/swapfile` # Create a 4 GB swap file # currently without Hibernation
+    - `btrfs filesystem mkswapfile --size 4g --uuid clear /mnt/swap/swapfile` # Create a 4 GB swap file (currently without Hibernation support)
     - `swapon /mnt/swap/swapfile` # activate the swap file
 - snapshots
   - encryption: `mount /dev/mapper/root -o subvol=/@snapshots,compress=zstd,noatime /mnt/.snapshots`
   - no encryption (Grub): `mount /dev/vda2 -o subvol=/@snapshots,compress=zstd,noatime /mnt/.snapshots`
-  - no encryption (systemd-boot): `mount /dev/vda3 -o subvol=/@snapshots,compress=zstd,noatime /mnt/.snapshots`
+  - no encryption (systemd-boot and XBOOTLDR): `mount /dev/vda3 -o subvol=/@snapshots,compress=zstd,noatime /mnt/.snapshots`
 - ... and all other subvolumes you may have created
 
 ### Mount btrfsroot for 'snapper-rollback'
@@ -683,7 +697,7 @@ Adjust to your device path.
 - encryption: `mount /dev/mapper/root -o subvol=/,compress=zstd,noatime /mnt/.btrfsroot`
 - ~~encryption: `mount /dev/mapper/root -o subvolid=5,compress=zstd,noatime /mnt/.btrfsroot`~~
 - no encryption (Grub): `mount /dev/vda2 -o subvol=/,compress=zstd,noatime /mnt/.btrfsroot`
-- no encryption (systemd-boot): `mount /dev/vda3 -o subvol=/,compress=zstd,noatime /mnt/.btrfsroot`
+- no encryption (systemd-boot and XBOOTLDR): `mount /dev/vda3 -o subvol=/,compress=zstd,noatime /mnt/.btrfsroot`
 
 ### Mount options
 
@@ -768,32 +782,43 @@ NAME                      MAJ:MIN RM   SIZE RO TYPE  MOUNTPOINTS
 
 ## Installation
 
+- <https://wiki.archlinux.org/title/Installation_guide#Installation>
+
 ### Select the mirrors
 
-In the live system, after connecting to the internet, `reflector` updates the mirror list by choosing 20 most recently synchronized HTTPS mirrors and sorting them by download rate.
-`/etc/pacman.d/mirrorlist`
+- <https://wiki.archlinux.org/title/Installation_guide#Select_the_mirrors>
 
 > :memo: **Note: reflector**
 > A Python 3 module and script to retrieve and filter the latest Pacman mirror list
 
-Update mirror list manually + set preferred countries (optional, temporary since arch live system):
+In the live system, after connecting to the internet, `reflector` updates the mirror list by choosing 20 most recently synchronized HTTPS mirrors and sorting them by download rate.
+`/etc/pacman.d/mirrorlist`
+
+Update mirror list manually + set preferred countries (optional, only temporary since we are in an arch live system):
 
 - `reflector --verbose --age 12 --protocol https --sort rate --country 'Austria,France,Germany,Switzerland' --save /etc/pacman.d/mirrorlist`
 
-You could activate parallel downloads by pacman (optional, temporary since arch live system):
+You could activate parallel downloads by pacman (optional, temporary since we are in an arch live system):
 `vim /etc/pacman.conf` and umcomment the line containing `ParallelDownlodads = 5`
 
 ### Install essential packages
 
-The minimum would be:
-`pacstrap -K /mnt base linux linux-firmware`
-and install the rest while chrooted into the new system (e.g. see: Post-installation -> System administration -> after "Users and groups").
+- <https://wiki.archlinux.org/title/Installation_guide#Install_essential_packages>
 
-But lets already install some more package here:
+#### Minimal package install
 
-- `pacstrap -K /mnt base linux linux-firmware linux-headers   grub efibootmgr btrfs-progs mtools   base-devel sudo man-db man-pages texinfo   networkmanager   reflector   openssh vim rsync terminus-font`
+The minimum would be: `pacstrap -K /mnt base linux linux-firmware` # using 'linux' kernel
+And install the rest while chrooted into the new system (e.g. see: Post-installation -> System administration; after "Users and groups").
 
-- for ext2/3/4 filesystem add: `e2fsprogs`
+#### Extended package install
+
+But we could also install some more packages here:
+
+- e.g. Grub + UEFI: `pacstrap -K /mnt base linux linux-firmware linux-headers   grub efibootmgr   btrfs-progs mtools   base-devel sudo man-db man-pages texinfo   networkmanager   reflector   openssh vim rsync terminus-font`
+- e.g. Systemd-boot: `pacstrap -K /mnt base linux linux-firmware linux-headers   efibootmgr   btrfs-progs mtools   base-devel sudo man-db man-pages texinfo   networkmanager   reflector   openssh vim rsync terminus-font`
+&nbsp;
+
+- for Ext2/3/4 filesystem utilities add: `e2fsprogs`
 - depending on processor add:
   - for AMD: `amd-ucode`
   - for Intel: `intel-ucode`
@@ -801,13 +826,15 @@ But lets already install some more package here:
   - `pipewire` and maybe also:
   - `pipewire-alsa pipewire-pulse pipewire-jack wireplumber`
   - first you could install just `pipewire`, you can still install the others later if needed
+- and maybe `sof-firmware` for onboard audio, depending on your system
 - for bluetooth add: `bluez bluez-utils`
-  - and maybe `sof-firmware` for onboard audio, depending on your system
-- you could also add another shell:
-  - e.g. for zsh add: `zsh`
+- other shells, e.g. for zsh add: `zsh`
+
+#### Summarized package list
 
 All packages above together:
-`pacstrap -K /mnt   base linux linux-firmware linux-headers   grub efibootmgr btrfs-progs mtools e2fsprogs   base-devel sudo man-db man-pages texinfo   networkmanager   reflector   openssh vim rsync terminus-font   amd-ucode intel-ucode   pipewire pipewire-alsa pipewire-pulse pipewire-jack wireplumber sof-firmware   bluez bluez-utils   zsh`
+- e.g. Grub + UEFI: `pacstrap -K /mnt   base linux linux-firmware linux-headers   grub efibootmgr   btrfs-progs mtools e2fsprogs   base-devel sudo man-db man-pages texinfo   networkmanager   reflector   openssh vim rsync terminus-font   amd-ucode intel-ucode   pipewire pipewire-alsa pipewire-pulse pipewire-jack wireplumber sof-firmware   bluez bluez-utils   zsh`
+- e.g. Systemd-boot: `pacstrap -K /mnt   base linux linux-firmware linux-headers   efibootmgr   btrfs-progs mtools e2fsprogs   base-devel sudo man-db man-pages texinfo   networkmanager   reflector   openssh vim rsync terminus-font   amd-ucode intel-ucode   pipewire pipewire-alsa pipewire-pulse pipewire-jack wireplumber sof-firmware   bluez bluez-utils   zsh`
 
 ## Configure the system
 
@@ -815,6 +842,9 @@ All packages above together:
 
 ### Fstab (filesystem table)
 
+- <https://wiki.archlinux.org/title/Installation_guide#Fstab>
+
+#### Create fstab
 - `genfstab -U /mnt >> /mnt/etc/fstab` # `-U`: use UUIDs
 - `cat /mnt/etc/fstab` # check
 
@@ -956,10 +986,13 @@ UUID=53791c43-d7ad-48fd-bbc9-8f15451d94f0 /.btrfsroot btrfs      rw,noatime,comp
 
 ### Chroot (Change root into new system)
 
+- <https://wiki.archlinux.org/title/Installation_guide#Chroot>
+
 - `arch-chroot /mnt`
 
 ### Time
 
+- <https://wiki.archlinux.org/title/Installation_guide#Time>
 - <https://wiki.archlinux.org/title/System_time#Time_standard>
 - <https://wiki.archlinux.org/title/System_time#Hardware_clock>
 - <https://wiki.archlinux.org/title/System_time#System_clock>
@@ -1013,15 +1046,25 @@ Start and enable systemd-timesyncd.service (when running in chroot):
 
 ## Network configuration
 
+- <https://wiki.archlinux.org/title/Installation_guide#Network_configuration>
+- <https://wiki.archlinux.org/title/Network_configuration>
+
 ### hostname file
+
+- <https://wiki.archlinux.org/title/Network_configuration#Set_the_hostname>
+&nbsp;
 
 - `vim /etc/hostname` # Create the hostname file
   - `HOSTNAME` # insert desired hostname in this empty new file
 
 ### hosts file
 
+- <https://wiki.archlinux.org/title/Network_configuration#Local_network_hostname_resolution>
+- <https://man.archlinux.org/man/hosts.5>
+&nbsp;
+
 - `vim /etc/hosts`
-  - insert these lines into this emtpy new file, adjust HOSTNAME
+  - insert these lines into this emtpy new file, adjust HOSTNAME to your chosen hostname
 
 ```text
 # Standard host addresses
@@ -1049,7 +1092,7 @@ We installed "NetworkManager" (see: "Install essential packages")
 - <https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#Configuring_LUKS_to_make_use_of_the_keyfile>
 &nbsp;
 
-- **Skipped for systemd-boot for now**
+- **Skip for systemd-boot**
 
 If the root partition is encrypted and you want it to be dercrypted automatically on boot, you can use a keyfile.
 Skip this step, if you no not use enryption or do not want to use keyfile.
@@ -1072,6 +1115,7 @@ The next steps to do are:
 
 ## Initramfs (Create initial ramdisk environment)
 
+- <https://wiki.archlinux.org/title/Installation_guide#Initramfs>
 - <https://wiki.archlinux.org/title/Mkinitcpio>
 - <https://wiki.archlinux.org/title/Dm-crypt/Encrypting_an_entire_system#Configuring_mkinitcpio>
 - <https://wiki.archlinux.org/title/Dm-crypt/System_configuration#mkinitcpio>
@@ -1123,6 +1167,7 @@ For LVM, **system** encryption or RAID, modify mkinitcpio.conf(5) (`/etc/mkinitc
 
 ## Boot loader
 
+- <https://wiki.archlinux.org/title/Installation_guide#Boot_loader>
 - <https://wiki.archlinux.org/title/Arch_boot_process#Boot_loader>
 
 ### Grub
@@ -1142,11 +1187,11 @@ For LVM, **system** encryption or RAID, modify mkinitcpio.conf(5) (`/etc/mkinitc
 
 #### Config default grub
 
-##### Enrypted the root partition
+##### Encrypted the root partition
 
 - <https://wiki.archlinux.org/title/GRUB#Encrypted_/boot>
 
-If you enrypted the root partition (which includes `/boot` folder), we have to configure the boot loader:
+If you encrypted the root partition (which includes `/boot` folder), we have to configure the boot loader:
 
 - `vim /etc/default/grub`
 - uncomment: `GRUB_ENABLE_CRYPTODISK=y`
@@ -1321,35 +1366,46 @@ in `/boot/loader/entries/arch.conf` and `/boot/loader/entries/arch-fallback.conf
 
 - `bootctl`
 
-## SET PASSWORD FOR root
+## Set password for root user
+
+- <https://wiki.archlinux.org/title/Installation_guide#Root_password>
+&nbsp;
 
 - `passwd`
 
-> :warning: Or you can not login after reboot !
+> :warning: If you do not set a password for the root user you can not login after reboot !
 
 ## Reboot
 
-> :warning: Check:  password set for root ?
+- <https://wiki.archlinux.org/title/Installation_guide#Reboot>
+
+> :warning: Check: Did you set a password for the root user ?!
 
 ### === Chroot end ===
 
 - `exit` # Exit the chroot environment
-- (`swapoff /mnt/swap/swapfile`)
-- (`umount -R /mnt` # manually unmount all the partitions to check if the drive is busy)
-  - also unmounts CDROM with installation iso
-- `systemctl reboot`
+
+### Optionally manually unmount all the partitions
+
+- ~~(`swapoff /mnt/swap/swapfile`)~~
+- `umount -R /mnt` # manually unmount all the partitions, allows noticing any "busy" partitions
+  - also unmounts "CDROM", USB device ... arch installation medium
+
+### Restart the machine
+
+- `systemctl reboot` # or just: `reboot`
 
 * * *
 * * *
 
 ## === Post-installation steps ===
 
+- <https://wiki.archlinux.org/title/Installation_guide#Post-installation>
 - <https://wiki.archlinux.org/title/General_recommendations>
 - <https://wiki.archlinux.org/title/List_of_applications>
-&nbsp;
 
 `login:` root
-`Password:` As set a few steps above
+`Password:` enter password for root user
 
 ## System administration
 
@@ -1359,8 +1415,9 @@ in `/boot/loader/entries/arch.conf` and `/boot/loader/entries/arch-fallback.conf
 
 - <https://wiki.archlinux.org/title/Users_and_groups#User_management>
 - <https://wiki.archlinux.org/title/Users_and_groups#Changing_user_defaults>
+&nbsp;
 
-- `useradd -m -G wheel -s /bin/bash USERNAME` # create user 'USERNAME', add to group 'wheel', shell would autamtically set to the default shell (should be `bash`), but I defined explicitly `bash`
+- `useradd -m -G wheel -s /bin/bash USERNAME` # create user 'USERNAME', add to group 'wheel', shell would autamtically set to the default shell (should be `bash`), but we defined explicitly `bash`
 - `passwd USERNAME` # set a password
 &nbsp;
 
@@ -1395,8 +1452,10 @@ in `/boot/loader/entries/arch.conf` and `/boot/loader/entries/arch-fallback.conf
 #### Modify sudoers file (optional)
 
 - `EDITOR=vim visudo`
-- Uncomment to allow members of group wheel to execute any command:
+- e.g. uncomment this line to allow members of group `wheel` to execute any command:
   - `%wheel ALL=(ALL:ALL) ALL`
+
+> :warning: If logged in as the newly created user: prefix the commands in the next steps with `sudo`.
 
 ### INSERTION: ssh again from another machine
 
@@ -1405,14 +1464,11 @@ in `/boot/loader/entries/arch.conf` and `/boot/loader/entries/arch-fallback.conf
 &nbsp;
 
 - `systemctl start sshd` # or permanantly: `systemctl enable --now sshd` # Start and / or enable sshd
-- `systemctl status sshd` # check sshd status
+- `systemctl status sshd` # check sshd serivce status
 
-Connect to VM / machine from your machine:
+Connect to (virtual) machine:
 
 - `ssh -o IdentitiesOnly=yes USERNAME@IP-ADDRESS`
-
-> :warning: If logged in as the newly created user:
-> Prefix the commands in the next steps with `sudo`.
 
 ### INSERTION: Snapper and btrfs snapshots
 
@@ -1425,8 +1481,6 @@ Connect to VM / machine from your machine:
 
 #### create snapper config file
 
-Quelle:
-
 - <https://wiki.archlinux.org/title/Snapper#Configuration_of_snapper_and_mount_point>
 &nbsp;
 
@@ -1437,8 +1491,8 @@ Quelle:
 
 - `sudo btrfs subvolume delete /.snapshots`
 - `sudo mkdir /.snapshots`
-- `sudo mount -a`
-  - (or just: `sudo mount -o subvol=@snapshots /dev/sda2 /.snapshots` # adjust to your device path)
+- `sudo mount -a` # mount all filesystems mentioned in fstab
+  - (or specify explicitly, e.g. root partition not encrypted: `sudo mount /dev/vda2 -o subvol=@snapshots,compress=zstd,noatime /.snapshots` # adjust to your device path)
 
 > :memo: **Note:**
 > This will make all snapshots that snapper creates be stored outside of the @ subvolume, so that @ can easily be replaced anytime without losing the snapper snapshots.
@@ -1542,24 +1596,6 @@ Script to rollback snapper snapshots (comfortable via CLI of a booted system)
 
 ### INSERTION: Config zram as swap
 
-**Text extracts from the sources listed below:**
-zram can be used for swap or as a general-purpose RAM disk.
-zram creates a **compressed** block device in RAM.
-
-**Spoiler**: If you have enough Ram / not much swapping, you do not need to concern yourself with the configuration of zram.
-
-zram is particularly effective on machines that do not have much memory.
-And / or has an advantage for devices that have flash-based memory, which has a limited lifespan due to write amplification.
-
-**Usage as swap**: Initially the created zram block device does not reserve or use any RAM. Only as files need or want to be swapped out, they will be **compressed** and moved into the zram block device. The zram block device will then dynamically grow or shrink as required.
-Even when assuming that zstd only achieves a conservative 1:2 compression ratio (real world data shows a common ratio of 1:3), zram will offer the advantage of being able to store more content in RAM than without memory compression.
-So instead of having 4 GB of RAM, with zRAM you could utilize around 8-12 GB of effective system memory.
-(Compression ratio depends on the data / intended use of your machine. Data that is difficult / can not be compressed would not benefit much from zram compared to data that can be easily compressed.)
-
-The compression and decompression time is generally negligible for any relatively modern CPU (>= ~2015).
-
-Using zram or zswap (last one is currently the default in Arch Linux) reduces swap usage, which effectively reduces the amount of wear placed on flash-based storage and makes it last longer. Using zram also results in significantly reduced I/O for Linux systems that require swapping.
-
 - <https://wiki.archlinux.org/title/Zram>
 - <https://wiki.archlinux.org/title/Swap#Compressed_block_device_in_RAM>
 - <https://wiki.archlinux.org/title/Improving_performance#zram_or_zswap>
@@ -1580,16 +1616,32 @@ Using zram or zswap (last one is currently the default in Arch Linux) reduces sw
 - <https://wiki.archlinux.org/title/Kernel_parameters#GRUB>
 - <https://bbs.archlinux.org/viewtopic.php?id=286116>
 
+> :memo: **Text extracts from the sources listed above:**
+> zram can be used for swap or as a general-purpose RAM disk.
+> zram creates a **compressed** block device in RAM.
+> 
+> **Starting remark**: If you have enough RAM / not much swapping, you do not need to concern yourself with the configuration of zram.
+> 
+> zram is particularly effective on machines that do not have much memory.
+> And / or has an advantage for devices that have flash-based memory, which has a limited lifespan due to write amplification.
+> 
+> **Usage as swap**: Initially the created zram block device does not reserve or use any RAM. Only as files need or want to be swapped out, they will be **compressed** (if possible) and moved into the zram block device. The zram block device will then dynamically grow or shrink as required.
+> 
+> Even when assuming that zstd only achieves a conservative 1:2 compression ratio (real world data shows a common ratio of 1:3), zram will offer the advantage of being able to store more content in RAM than without memory compression.
+> So instead of having 4 GB of RAM, with zRAM you could utilize around 8-12 GB of effective system memory.
+> 
+> Compression ratio depends on the data / intended use of your machine. Data that is difficult / can not be compressed would not benefit much from zram compared to data that can be easily compressed.
+> 
+> The compression and decompression time is generally negligible for any relatively modern CPU (>= ~2015).
+> 
+> Using zram or zswap (as of 10/2024: zswap is the default in Arch Linux) reduces swap usage, which effectively reduces the amount of wear placed on flash-based storage and makes it last longer.
+> Using zram also results in significantly reduced I/O for Linux systems that require swapping.
+
 #### Disable zswap
 
-If the related zswap kernel feature remains enabled, it will prevent zram from being used effectively. ...
+> :memo: If the related zswap kernel feature remains enabled, it will prevent zram from being used effectively. ...
 
-Disable zswap at runtime:
-
-- login as root
-- `echo 0 > /sys/module/zswap/parameters/enabled`
-
-To disable zswap permanently (which is what we want), add `zswap.enabled=0` to your kernel parameters:
+To disable zswap permanently add `zswap.enabled=0` to your kernel parameters:
 
 - **Grub**
   - `vim /etc/default/grub`
@@ -1600,12 +1652,15 @@ To disable zswap permanently (which is what we want), add `zswap.enabled=0` to y
     - `grub-mkconfig -o /boot/grub/grub.cfg`
 - **Systemd-boot**
   - modify options for the loader entries config files: `sudo vim /boot/loader/entries/arch.conf` and `sudo vim /boot/loader/entries/arch-fallback.conf`
-    - e.g.: `rootflags=subvol=/@ rd.luks.name=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA=cryptroot root=/dev/mapper/root rw zswap.enabled=0`
+    - e.g.: `rootflags=subvol=/@ rd.luks.name=2ee5664a-fb17-4762-8e3d-d8e4b8823815=root root=/dev/mapper/root rw zswap.enabled=0`
 
 Check if disabled (after a reboot):
 
 - `cat /sys/module/zswap/parameters/enabled`
-  - this should print an `N` if deactivating zswap was successful
+  - this should print `N` if deactivating zswap was successful
+
+> :memo: Disable zswap at runtime (temporary):
+> Login as root user and execute: `echo 0 > /sys/module/zswap/parameters/enabled`
 
 #### Using zram-generator
 
