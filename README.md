@@ -109,8 +109,8 @@ Using snapper + [snapper-rollback (AUR)](https://aur.archlinux.org/packages/snap
       - [Automatic update via systemd service](#automatic-update-via-systemd-service)
       - [Loader configuration](#loader-configuration)
       - [Adding loaders](#adding-loaders)
-        - [Default loader and no encryption](#default-loader-and-no-encryption)
-        - [Fallback loader and no encryption](#fallback-loader-and-no-encryption)
+        - [Default loader](#default-loader)
+        - [Fallback loader](#fallback-loader)
         - [Additional options](#additional-options)
       - [Check config](#check-config)
   - [SET PASSWORD FOR root](#set-password-for-root)
@@ -133,7 +133,7 @@ Using snapper + [snapper-rollback (AUR)](https://aur.archlinux.org/packages/snap
         - [Rollback example](#rollback-example)
     - [INSERTION: Config zram as swap](#insertion-config-zram-as-swap)
       - [Disable zswap](#disable-zswap)
-      - [Using zram-genrator](#using-zram-genrator)
+      - [Using zram-generator](#using-zram-generator)
       - [Optimizing swap on zram](#optimizing-swap-on-zram)
     - [INSERTION: Desktop Environment](#insertion-desktop-environment)
     - [Security](#security)
@@ -231,7 +231,7 @@ Boot the live installation media.
 
 - `localectl list-keymaps` # show all available keymaps, look for yours
 - `loadkeys de-latin1` # load keymap
-- `setfont ter-132b` # optional # set (bigger) font # `ter-122b` # `setfont - d` (double size)
+- `setfont ter-132b` # optional # set (bigger) font # `ter-122b` (maybe big enough) # `setfont -d` (double size, maybe looks kind of blurred)
   - available fonts: `ls /usr/share/kbd/consolefonts/ | less`
 
 ## Excursus: Connecting to the machine to be installed via ssh
@@ -240,18 +240,17 @@ Boot the live installation media.
 &nbsp;
 
 - `pacman -Sy` # sync + refresh package database
-- `pacman -S openssh rsync sudo vim nano` # install some packages
+- `pacman -S --needed openssh rsync sudo vim nano` # install some packages
 - `systemctl start sshd` # start ssh service
-- `systemctl status sshd` # check status of ssh service
+- `systemctl status sshd` # check status of sshd service
 &nbsp;
 
 - `vim /etc/ssh/ssh_config` # config ssh # or use 'nano' / your prefered editor instead of 'vim'
   - uncomment: `PasswordAuthentication yes`
   - add: `PermitRootLogin yes`
+&nbsp;
 
-(Or create a user, add to group wheel, allow wheel to execute any command and login with this user)
-
-- `ip a` # look for the current IP address
+- `ip a` # get current IP address
 
 ssh from your computer into the machine to be installed:
 
@@ -265,12 +264,10 @@ ssh from your computer into the machine to be installed:
 - `cat /sys/firmware/efi/fw_platform_size`
   - If this command prints `64` or `32` then you are in UEFI mode
   - else prints:
-
     ```text
     cat: /sys/firmware/efi/fw_platform_size: No such file or directory
     ```
-
-    which means you are in BIOS Boot mode
+    - which means you are in BIOS Boot mode
 
 ## Internet connection
 
@@ -286,6 +283,7 @@ ssh from your computer into the machine to be installed:
 - <https://wiki.archlinux.org/title/Installation_guide#Update_the_system_clock>
 &nbsp;
 
+- `timedatectl set-timezone Europe/Berlin` # optional # set timezone, e.g. for Germany
 - `timedatectl`
 
 ## Disk partitioning
@@ -342,6 +340,7 @@ only for systemd-boot (using XBOOTLDR):
 n
 ,, +1500M   # extended boot partition, size 1,5 GB
 t           # change type
+,
 142         # 'Linux extended boot'
 ```
 
@@ -372,10 +371,17 @@ Device       Start      End  Sectors Size Type
 #### Current partition table UEFI/GPT and systemd-boot
 
 ```text
-Device       Start       End  Sectors  Size Type
-/dev/vda1     2048   2099199  2097152    1G EFI System
-/dev/vda2  2099200   5171199  3072000  1.5G Linux extended boot
-/dev/vda3  5171200 104855551 99684352 47.5G Linux root (x86-64)
+Disk /dev/vda: 35 GiB, 37580963840 bytes, 73400320 sectors
+Units: sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+Disklabel type: gpt
+Disk identifier: 7AEB4613-6036-4E00-9FA0-6CD6EA89F2F8
+
+Device       Start      End  Sectors  Size Type
+/dev/vda1     2048  2099199  2097152    1G EFI System
+/dev/vda2  2099200  5171199  3072000  1.5G Linux extended boot
+/dev/vda3  5171200 73398271 68227072 32.5G Linux root (x86-64)
 ```
 
 ### BIOS/GPT
@@ -437,8 +443,8 @@ Device     Start      End  Sectors Size Type
 #### Encrypting our root partition
 
 - <https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#Encrypting_devices_with_LUKS_mode>
-- ~~`cryptsetup luksFormat /dev/vda2`~~
-- `cryptsetup luksFormat --pbkdf pbkdf2 /dev/vda2`
+- Systemd-boot: `cryptsetup luksFormat /dev/vda2`
+- Grub: `cryptsetup luksFormat --pbkdf pbkdf2 /dev/vda2`
   - <https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#Encryption_options_for_LUKS_mode>
     - Argon2id (cryptsetup default) and Argon2i PBKDFs are not supported ([GRUB bug #59409](https://savannah.gnu.org/bugs/?59409)), only PBKDF2 is
     - as of 10/2024
@@ -448,9 +454,44 @@ Device     Start      End  Sectors Size Type
 #### Open the LUKS encrypted root partition
 
 - <https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#Unlocking/Mapping_LUKS_partitions_with_the_device_mapper>
-- `cryptsetup open /dev/vda2 cryptroot`
-  - Once opened, the root partition device address would be `/dev/mapper/cryptroot` instead of the partition `/dev/vda2`; device mapper name is: `cryptroot`
+- `cryptsetup open /dev/vda2 root`
+  - Once opened, the root partition device address would be `/dev/mapper/root` instead of the partition `/dev/vda2`; device mapper name is: `root`
   - you should make a note, we will need this info later
+
+> :warning: **Encryption: device mapper name and root partition label**
+> I used to set device mapper name to `cryptroot`.
+> But systemd-boot seems to set to `root` (and seems to like the partition label to be named corresponding).
+> To harmonize the naming for `Grub` und `systemd-boot` I changed the mapper name for both to `root` and the root partition label (see also Format partitions).
+>
+> When setting device-mapper name (and root partition label) to `cryptroot`, systemd-boot still works, but it looks a bit ugly:
+> 
+> **fstab:**
+> ```text
+> NAME                      FSTYPE      FSVER LABEL     UUID                                 FSAVAIL FSUSE% MOUNTPOINTS
+> [...]
+> └─/dev/vda3               crypto_LUKS 2               f3fcab95-75b4-471d-ab22-39f11537701d                
+>   ├─/dev/mapper/cryptroot btrfs             CRYPTROOT 67f9435b-2f88-41ce-826f-928577e17519                
+>   └─/dev/mapper/root      btrfs             CRYPTROOT 67f9435b-2f88-41ce-826f-928577e17519   26.2G    18% /var/log
+>                                                                                                           /swap
+>                                                                                                           [...]
+> [...]
+> ```
+>
+> **ls -la /dev/mapper**
+> ```
+> [...]
+> lrwxrwxrwx  1 root root       7 Nov  6 17:47 cryptroot -> ../dm-0
+> lrwxrwxrwx  1 root root       7 Nov  6 17:47 root -> ../dm-1
+> ```
+>
+> **ls -la /dev/disk/by-uuid**
+> ```
+> [...]
+> lrwxrwxrwx 1 root root  10 Nov  6 17:47 67f9435b-2f88-41ce-826f-928577e17519 -> ../../dm-1
+> lrwxrwxrwx 1 root root  10 Nov  6 17:47 B2CE-79C8 -> ../../vda1
+> lrwxrwxrwx 1 root root  10 Nov  6 17:47 B438-9424 -> ../../vda2
+> lrwxrwxrwx 1 root root  10 Nov  6 17:47 f3fcab95-75b4-471d-ab22-39f11537701d -> ../../vda3
+> ```
 
 #### Show current block device list
 
@@ -463,19 +504,19 @@ NAME                      MAJ:MIN RM   SIZE RO TYPE  MOUNTPOINTS
 /dev/vda                  254:0    0    25G  0 disk
 ├─/dev/vda1               254:1    0     1G  0 part
 └─/dev/vda2               254:2    0    24G  0 part
-  └─/dev/mapper/cryptroot 253:0    0    24G  0 crypt
+  └─/dev/mapper/root 253:0    0    24G  0 crypt
 ```
 
 #### Note regarding passwort input at boot
 
-With current setup, when starting your machine you will be asked twice for a password for decrypting: 1x bootloader, 1x cryptroot.
+Grub: With current setup, when starting your machine you will be asked twice for a password for decrypting: 1x bootloader, 1x encrypted root partition.
 
 > :memo: **keyfile**
-> You can generate and add a keyfile to [unlock cryptroot at boot](https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#With_a_keyfile_embedded_in_the_initramfs), which has to be accessible only by root user.
+> You can generate and add a keyfile to [unlock encrypted root at boot](https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#With_a_keyfile_embedded_in_the_initramfs), which has to be accessible only by root user.
 >
-> The steps will be described at a later point, see: 'Initramfs (Create initial ramdisk environment)' and 'BOOT LOADER -> GRUB', when in chroot environment.
+> The steps will be described at a later point (for Grub), see: 'Initramfs (Create initial ramdisk environment)' and 'BOOT LOADER -> GRUB', when in chroot environment.
 >
-> Since you will still have to enter a secure passphrase once on boot, and `/boot` is encrypted (on cryptroot), and for UEFI: ESP ist mounted to `/efi`, there should be no real security disadvantages.
+> Since you will still have to enter a secure passphrase once on boot, and `/boot` is encrypted (on encrypted root partition), and for UEFI: ESP ist mounted to `/efi`, there should be no real security disadvantages.
 
 - Unlocking the root partition at boot, with a keyfile embedded in the initramfs
   - <https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#With_a_keyfile_embedded_in_the_initramfs>
@@ -492,11 +533,11 @@ With current setup, when starting your machine you will be asked twice for a pas
 - EFI partition (only UEFI boot mode, skip for BIOS boot mode)
   - `mkfs.fat -F32 -n EFI /dev/vda1` # EFI partition # adjust to your device path
 - Extended boot partition (systemd-boot using XBOOTLDR):
-  - `mkfs.fat -F32 -n XBOOT /dev/vda2` # Extended boot partition # adjust to your device path
+  - `mkfs.fat -F32 -n XBOOTLDR /dev/vda2` # Extended boot partition # adjust to your device path
 - root partition
   - if you enrypted the root partition:
-    - `mkfs.btrfs -L ROOT /dev/mapper/cryptroot`
-    - the device `/dev/mapper/cryptroot` can then be mounted like any other partition
+    - `mkfs.btrfs -L ROOT /dev/mapper/root`
+    - the device `/dev/mapper/root` can then be mounted like any other partition
   - if you did not encrypt the root partition:
     - `mkfs.btrfs -L ROOT /dev/vda3` # main partition # adjust to your device path, e.g. /dev/vda2 (for Grub bootloader in our example)
 
@@ -511,11 +552,14 @@ With current setup, when starting your machine you will be asked twice for a pas
 ### Mount root partiton
 
 - if you enrypted the root partition:
-  - `mount /dev/mapper/cryptroot /mnt` # mount btrfs root # adjust to your device path
+  - `mount /dev/mapper/root /mnt` # mount btrfs root # adjust to your device path
 - If you did not enrypt root partition:
   - `mount /dev/vda2 /mnt` # mount btrfs root # adjust to your device path
 
 ### Create subvolumes
+
+- <https://wiki.archlinux.org/title/Snapper#Suggested_filesystem_layout>
+&nbsp;
 
 - in a single command:
   - `btrfs subvolume create /mnt/{@,@home,@varlog,@swap,@snapshots}`
@@ -527,9 +571,7 @@ With current setup, when starting your machine you will be asked twice for a pas
   - `btrfs subvolume create /mnt/@snapshots` # snapshot folder
 - ... and others:
 
-> - <https://wiki.archlinux.org/title/Snapper#Suggested_filesystem_layout>
->
-> Tip:
+> **Tip:**
 >
 > - Consider creating subvolumes for other directories that contain data you do not want to include in snapshots and rollbacks of the @ subvolume, such as `/var/cache`, `/var/spool`, `/var/tmp`, `/var/lib/machines` (systemd-nspawn), `/var/lib/docker` (Docker), `/var/lib/postgres` (PostgreSQL), and other data directories under `/var/lib/`.
 >   - e.g.: `/var/lib/libvirt/images` (Virtual machine images), `/srv`, `/tmp`, `/opt`
@@ -568,8 +610,8 @@ Subvolume-ID 5 (top level 5) = btrfsroot ("/")
 ### Mount partition to install the system
 
 - if you enrypted the root partition:
-  - `mount /dev/mapper/cryptroot -o subvol=/@,compress=zstd,noatime /mnt` # Mount the subvolume on which we want to install the system # adjust to your device path
-  - ~~`mount /dev/mapper/cryptroot -o subvolid=256,compress=zstd,noatime /mnt`~~
+  - `mount /dev/mapper/root -o subvol=/@,compress=zstd,noatime /mnt` # Mount the subvolume on which we want to install the system # adjust to your device path
+  - ~~`mount /dev/mapper/root -o subvolid=256,compress=zstd,noatime /mnt`~~
 - If you did not enrypt root partition:
   - `mount /dev/vda2 -o subvol=/@,compress=zstd,noatime /mnt` # Mount the subvolume on which we want to install the system # adjust to your device path
 
@@ -578,7 +620,7 @@ Subvolume-ID 5 (top level 5) = btrfsroot ("/")
 - in a single command:
   - `mkdir -p /mnt/{efi,boot,home,var/log,swap,.snapshots,.btrfsroot}`
 - or in individual commands:
-  - `mkdir -p /mnt/efi`
+  - `mkdir -p /mnt/efi` # only for UEFI
   - `mkdir -p /mnt/boot` # only for systemd-boot using XBOOTLDR
   - `mkdir -p /mnt/home`
   - `mkdir -p /mnt/var/log`
@@ -591,52 +633,62 @@ Subvolume-ID 5 (top level 5) = btrfsroot ("/")
 
 only UEFI, skip if BIOS boot mode
 
-- `mount /dev/vda1 /mnt/efi` # adjust to your device path
+- ~~`mount /dev/vda1 /mnt/efi` # adjust to your device path~~
+- `mount /dev/vda1 -o fmask=0137,dmask=0027 /mnt/efi` # adjust to your device path # drwxr-x---
 
 ### Mount the extended boot partition
 
 only UEFI and systemd-boot using XBOOTLDR, skip if BIOS boot mode or Grub bootloader
 
-- `mount /dev/vda2 /mnt/boot` # adjust to your device path
+- ~~`mount /dev/vda2 /mnt/boot` # adjust to your device path~~
+- `mount /dev/vda2 -o fmask=0137,dmask=0027 /mnt/boot` # adjust to your device path # drwxr-x---
 
 ### Mount the subvolumes
 
 Adjust to your device path.
 
-> :warning: If root partition is encrypted:
+> :warning: **Systemd-boot with extended boot partition:**
+> Since we have one more partition in our example, replace `/dev/vda2` with `/dev/vda3`
 >
-> - Replace `/dev/vda2` / `/dev/vda3` with `/dev/mapper/cryptroot`
->   - `cryptroot` = device mapper name used for enryption / opening enrypted root partition
+> example mounting `home` subvolume (no encryption):
+> `mount `**/dev/vda3**` -o subvol=/@home,compress=zstd,noatime /mnt/home`
+
+> :warning: **If root partition is encrypted:**
+> Replace `/dev/vda2` (root partition) with `/dev/mapper/root` (`root` = device mapper name used for enryption / opening enrypted root partition)
+> The mount command ist the same for Grub and systemd-boot.
 
 - home
-  - encryption, Grub: `mount /dev/mapper/cryptroot -o subvol=/@home,compress=zstd,noatime /mnt/home`
-  - no encryption, Grub: `mount /dev/vda2 -o subvol=/@home,compress=zstd,noatime /mnt/home`
-  - no encryption, systemd-boot: `mount /dev/vda3 -o subvol=/@home,compress=zstd,noatime /mnt/home`
-    - do the same for the others for systemd-boot using XBOOTLDR: replace /dev/vda2 with /dev/vda3
+  - encryption: `mount /dev/mapper/root -o subvol=/@home,compress=zstd,noatime /mnt/home`
+  - no encryption (Grub): `mount /dev/vda2 -o subvol=/@home,compress=zstd,noatime /mnt/home`
+  - no encryption (systemd-boot): `mount /dev/vda3 -o subvol=/@home,compress=zstd,noatime /mnt/home`
 - log files
-  - encryption: `mount /dev/mapper/cryptroot -o subvol=/@varlog,compress=zstd,noatime /mnt/var/log`
-  - no encryption: `mount /dev/vda2 -o subvol=/@varlog,compress=zstd,noatime /mnt/var/log`
-- Swap file:
-  - encryption: `mount /dev/mapper/cryptroot -o subvol=/@swap,compress=zstd,noatime /mnt/swap`
-  - no encryption: `mount /dev/vda2 -o subvol=/@swap,compress=zstd,noatime /mnt/swap`
-  - `btrfs filesystem mkswapfile --size 4g --uuid clear /mnt/swap/swapfile` # Create a 4 GB swap file # currently without Hibernation
-  - `swapon /mnt/swap/swapfile` # activate the swap file
+  - encryption: `mount /dev/mapper/root -o subvol=/@varlog,compress=zstd,noatime /mnt/var/log`
+  - no encryption (Grub): `mount /dev/vda2 -o subvol=/@varlog,compress=zstd,noatime /mnt/var/log`
+  - no encryption (systemd-boot): `mount /dev/vda3 -o subvol=/@varlog,compress=zstd,noatime /mnt/var/log`
+- swap file:
+  - encryption: `mount /dev/mapper/root -o subvol=/@swap,compress=zstd,noatime /mnt/swap`
+  - no encryption (Grub): `mount /dev/vda2 -o subvol=/@swap,compress=zstd,noatime /mnt/swap`
+  - no encryption (systemd-boot): `mount /dev/vda3 -o subvol=/@swap,compress=zstd,noatime /mnt/swap`
+  - create and activate swap:
+    - `btrfs filesystem mkswapfile --size 4g --uuid clear /mnt/swap/swapfile` # Create a 4 GB swap file # currently without Hibernation
+    - `swapon /mnt/swap/swapfile` # activate the swap file
 - snapshots
-  - encryption: `mount /dev/mapper/cryptroot -o subvol=/@snapshots,compress=zstd,noatime /mnt/.snapshots`
-  - no encryption: `mount /dev/vda2 -o subvol=/@snapshots,compress=zstd,noatime /mnt/.snapshots`
+  - encryption: `mount /dev/mapper/root -o subvol=/@snapshots,compress=zstd,noatime /mnt/.snapshots`
+  - no encryption (Grub): `mount /dev/vda2 -o subvol=/@snapshots,compress=zstd,noatime /mnt/.snapshots`
+  - no encryption (systemd-boot): `mount /dev/vda3 -o subvol=/@snapshots,compress=zstd,noatime /mnt/.snapshots`
 - ... and all other subvolumes you may have created
 
 ### Mount btrfsroot for 'snapper-rollback'
 
-- encryption: `mount /dev/mapper/cryptroot -o subvol=/,compress=zstd,noatime /mnt/.btrfsroot`
-- ~~encryption: `mount /dev/mapper/cryptroot -o subvolid=5,compress=zstd,noatime /mnt/.btrfsroot`~~
-- no encryption: `mount /dev/vda2 -o subvol=/,compress=zstd,noatime /mnt/.btrfsroot`
-- no encryption, systemd-boot: `mount /dev/vda3 -o subvol=/,compress=zstd,noatime /mnt/.btrfsroot`
+- encryption: `mount /dev/mapper/root -o subvol=/,compress=zstd,noatime /mnt/.btrfsroot`
+- ~~encryption: `mount /dev/mapper/root -o subvolid=5,compress=zstd,noatime /mnt/.btrfsroot`~~
+- no encryption (Grub): `mount /dev/vda2 -o subvol=/,compress=zstd,noatime /mnt/.btrfsroot`
+- no encryption (systemd-boot): `mount /dev/vda3 -o subvol=/,compress=zstd,noatime /mnt/.btrfsroot`
 
 ### Mount options
 
 > :memo: **Note:**
-> Mount options (`-o ...`) used above are for SSDs / NVMEs and btrfs filesystem
+> Mount options (`-o ...`) used above fit for (NVME) SSDs and btrfs filesystem
 
 ### Show current block device list
 
@@ -650,7 +702,7 @@ Adjust to your device path.
 /dev/vda                  254:0    0    25G  0 disk
 ├─/dev/vda1               254:1    0     1G  0 part  /mnt/efi
 └─/dev/vda2               254:2    0    24G  0 part
-  └─/dev/mapper/cryptroot 253:0    0    24G  0 crypt /mnt/.btrfsroot
+  └─/dev/mapper/root      253:0    0    24G  0 crypt /mnt/.btrfsroot
                                                      /mnt/.snapshots
                                                      /mnt/swap
                                                      /mnt/var/log
@@ -706,7 +758,7 @@ NAME                      MAJ:MIN RM   SIZE RO TYPE  MOUNTPOINTS
 /dev/vda                  254:0    0    35G  0 disk
 ├─/dev/vda1               254:1    0     1M  0 part
 └─/dev/vda2               254:2    0    35G  0 part
-  └─/dev/mapper/cryptroot 253:0    0    35G  0 crypt /mnt/.btrfsroot
+  └─/dev/mapper/root      253:0    0    35G  0 crypt /mnt/.btrfsroot
                                                      /mnt/.snapshots
                                                      /mnt/swap
                                                      /mnt/var/log
@@ -724,12 +776,12 @@ In the live system, after connecting to the internet, `reflector` updates the mi
 > :memo: **Note: reflector**
 > A Python 3 module and script to retrieve and filter the latest Pacman mirror list
 
-Update mirror list manually + set preferred countries (optional):
+Update mirror list manually + set preferred countries (optional, temporary since arch live system):
 
 - `reflector --verbose --age 12 --protocol https --sort rate --country 'Austria,France,Germany,Switzerland' --save /etc/pacman.d/mirrorlist`
 
-You could activate parallel downloads by pacman:
-`vim /etc/pacman.conf` and umcomment the line with `ParallelDownlodads = 5`
+You could activate parallel downloads by pacman (optional, temporary since arch live system):
+`vim /etc/pacman.conf` and umcomment the line containing `ParallelDownlodads = 5`
 
 ### Install essential packages
 
@@ -741,6 +793,7 @@ But lets already install some more package here:
 
 - `pacstrap -K /mnt base linux linux-firmware linux-headers   grub efibootmgr btrfs-progs mtools   base-devel sudo man-db man-pages texinfo   networkmanager   reflector   openssh vim rsync terminus-font`
 
+- for ext2/3/4 filesystem add: `e2fsprogs`
 - depending on processor add:
   - for AMD: `amd-ucode`
   - for Intel: `intel-ucode`
@@ -754,7 +807,7 @@ But lets already install some more package here:
   - e.g. for zsh add: `zsh`
 
 All packages above together:
-`pacstrap -K /mnt   base linux linux-firmware linux-headers   grub efibootmgr btrfs-progs mtools   base-devel sudo man-db man-pages texinfo   networkmanager   reflector   openssh vim rsync terminus-font   amd-ucode intel-ucode   pipewire pipewire-alsa pipewire-pulse pipewire-jack wireplumber sof-firmware   bluez bluez-utils   zsh`
+`pacstrap -K /mnt   base linux linux-firmware linux-headers   grub efibootmgr btrfs-progs mtools e2fsprogs   base-devel sudo man-db man-pages texinfo   networkmanager   reflector   openssh vim rsync terminus-font   amd-ucode intel-ucode   pipewire pipewire-alsa pipewire-pulse pipewire-jack wireplumber sof-firmware   bluez bluez-utils   zsh`
 
 ## Configure the system
 
@@ -765,7 +818,7 @@ All packages above together:
 - `genfstab -U /mnt >> /mnt/etc/fstab` # `-U`: use UUIDs
 - `cat /mnt/etc/fstab` # check
 
-> :warning: You should delete `subvolid=<subvolid>` in the fstab:
+> :warning: You should delete `subvolid=<subvolid>` in the mount options in fstab if present:
 >
 > - <https://bbs.archlinux.org/viewtopic.php?id=299085>
 > - <https://github.com/archlinux/arch-install-scripts/commit/added92801fac6b2aafe0362e0deca00da68ec19>:
@@ -779,34 +832,33 @@ All packages above together:
 >   - `UUID=7986ecc9-7656-4ccc-814f-e58f20e241a5 /          btrfs      rw,noatime,compress=zstd:3,space_cache=v2,`**subvolid=256,**`subvol=/@ 0 0`
 > - to:
 >   - `UUID=7986ecc9-7656-4ccc-814f-e58f20e241a5 /          btrfs      rw,noatime,compress=zstd:3,space_cache=v2,subvol=/@ 0 0`
-> &nbsp;
->
-> :warning: The UUIDs shown at 'with enryption' or 'without encrypion' would normally match.
+
+> :memo: The UUIDs shown at 'with enryption' or 'without encrypion' witjin following points would match.
 > They are only different because it was a seperate new installation both times with new random UUIDs generated.
 
 #### UEFI/GPT with encryption and Grub
 
 ```text
 # <file system> <dir> <type> <options> <dump> <pass>
-# /dev/mapper/cryptroot LABEL=ROOT
+# /dev/mapper/root LABEL=ROOT
 UUID=7986ecc9-7656-4ccc-814f-e58f20e241a5 /          btrfs      rw,noatime,compress=zstd:3,space_cache=v2,subvol=/@ 0 0
 
 # /dev/vda1 LABEL=EFI
 UUID=4584-08C8       /efi       vfat       rw,relatime,fmask=0022,dmask=0022,codepage=437,iocharset=ascii,shortname=mixed,utf8,errors=remount-ro 0 2
 
-# /dev/mapper/cryptroot LABEL=ROOT
+# /dev/mapper/root LABEL=ROOT
 UUID=7986ecc9-7656-4ccc-814f-e58f20e241a5 /home      btrfs      rw,noatime,compress=zstd:3,space_cache=v2,subvol=/@home 0 0
 
-# /dev/mapper/cryptroot LABEL=ROOT
+# /dev/mapper/root LABEL=ROOT
 UUID=7986ecc9-7656-4ccc-814f-e58f20e241a5 /var/log   btrfs      rw,noatime,compress=zstd:3,space_cache=v2,subvol=/@varlog 0 0
 
-# /dev/mapper/cryptroot LABEL=ROOT
+# /dev/mapper/root LABEL=ROOT
 UUID=7986ecc9-7656-4ccc-814f-e58f20e241a5 /swap      btrfs      rw,noatime,compress=zstd:3,space_cache=v2,subvol=/@swap 0 0
 
-# /dev/mapper/cryptroot LABEL=ROOT
+# /dev/mapper/root LABEL=ROOT
 UUID=7986ecc9-7656-4ccc-814f-e58f20e241a5 /.snapshots btrfs      rw,noatime,compress=zstd:3,space_cache=v2,subvol=/@snapshots 0 0
 
-# /dev/mapper/cryptroot LABEL=ROOT
+# /dev/mapper/root LABEL=ROOT
 UUID=7986ecc9-7656-4ccc-814f-e58f20e241a5 /.btrfsroot btrfs      rw,noatime,compress=zstd:3,space_cache=v2,subvolid=5,subvol=/ 0 0
 
 # Example with swapfile:
@@ -850,10 +902,10 @@ UUID=a552a029-4972-4b3a-b2cd-21ddb5e2e870 /.btrfsroot btrfs      rw,noatime,comp
 UUID=6eee7850-fde0-4cff-912a-d45d3c673313	/         	btrfs     	rw,noatime,compress=zstd:3,discard=async,space_cache=v2,subvol=/@	0 0
 
 # /dev/vda1 LABEL=EFI
-UUID=A5B9-FE11      	/efi      	vfat      	rw,relatime,fmask=0022,dmask=0022,codepage=437,iocharset=ascii,shortname=mixed,utf8,errors=remount-ro	0 2
+UUID=A5B9-FE11      	/efi      	vfat      	rw,relatime,fmask=0137,dmask=0027,codepage=437,iocharset=ascii,shortname=mixed,utf8,errors=remount-ro	0 2
 
-# /dev/vda2 LABEL=XBOOT
-UUID=A673-7346      	/boot     	vfat      	rw,relatime,fmask=0022,dmask=0022,codepage=437,iocharset=ascii,shortname=mixed,utf8,errors=remount-ro	0 2
+# /dev/vda2 LABEL=XBOOTLDR
+UUID=A673-7346      	/boot     	vfat      	rw,relatime,fmask=0137,dmask=0027,codepage=437,iocharset=ascii,shortname=mixed,utf8,errors=remount-ro	0 2
 
 # /dev/vda3 LABEL=ROOT
 UUID=6eee7850-fde0-4cff-912a-d45d3c673313	/home     	btrfs     	rw,noatime,compress=zstd:3,discard=async,space_cache=v2,subvol=/@home	0 0
@@ -878,22 +930,22 @@ UUID=6eee7850-fde0-4cff-912a-d45d3c673313	/.btrfsroot	btrfs     	rw,noatime,comp
 
 ```text
 # <file system> <dir> <type> <options> <dump> <pass>
-# /dev/mapper/cryptroot LABEL=ROOT
+# /dev/mapper/root LABEL=ROOT
 UUID=53791c43-d7ad-48fd-bbc9-8f15451d94f0 /          btrfs      rw,noatime,compress=zstd:3,space_cache=v2,subvol=/@ 0 0
 
-# /dev/mapper/cryptroot LABEL=ROOT
+# /dev/mapper/root LABEL=ROOT
 UUID=53791c43-d7ad-48fd-bbc9-8f15451d94f0 /home      btrfs      rw,noatime,compress=zstd:3,space_cache=v2,subvol=/@home 0 0
 
-# /dev/mapper/cryptroot LABEL=ROOT
+# /dev/mapper/root LABEL=ROOT
 UUID=53791c43-d7ad-48fd-bbc9-8f15451d94f0 /var/log   btrfs      rw,noatime,compress=zstd:3,space_cache=v2,subvol=/@varlog 0 0
 
-# /dev/mapper/cryptroot LABEL=ROOT
+# /dev/mapper/root LABEL=ROOT
 UUID=53791c43-d7ad-48fd-bbc9-8f15451d94f0 /swap      btrfs      rw,noatime,compress=zstd:3,space_cache=v2,subvol=/@swap 0 0
 
-# /dev/mapper/cryptroot LABEL=ROOT
+# /dev/mapper/root LABEL=ROOT
 UUID=53791c43-d7ad-48fd-bbc9-8f15451d94f0 /.snapshots btrfs      rw,noatime,compress=zstd:3,space_cache=v2,subvol=/@snapshots 0 0
 
-# /dev/mapper/cryptroot LABEL=ROOT
+# /dev/mapper/root LABEL=ROOT
 UUID=53791c43-d7ad-48fd-bbc9-8f15451d94f0 /.btrfsroot btrfs      rw,noatime,compress=zstd:3,space_cache=v2,subvolid=5,subvol=/ 0 0
 
 # Example with swapfile:
@@ -995,6 +1047,9 @@ We installed "NetworkManager" (see: "Install essential packages")
 - <https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#Creating_a_keyfile_with_random_characters>
 - <https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#Storing_the_keyfile_on_a_file_system>
 - <https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#Configuring_LUKS_to_make_use_of_the_keyfile>
+&nbsp;
+
+- **Skipped for systemd-boot for now**
 
 If the root partition is encrypted and you want it to be dercrypted automatically on boot, you can use a keyfile.
 Skip this step, if you no not use enryption or do not want to use keyfile.
@@ -1036,9 +1091,8 @@ The next steps to do are:
 
 - <https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#With_a_keyfile_embedded_in_the_initramfs>
 
-Skip this step
-- if you no not use enryption or 
-- do not want to use a keyfile (e.g. when using systemd-boot in this guide)
+**Skip this step if you no not use enryption or do not want to use a keyfile (e.g. when using systemd-boot in this guide).**
+
 
 - Include the key in mkinitcpio's FILES array:
   - `vim /etc/mkinitcpio.conf`
@@ -1105,7 +1159,7 @@ We need some info (UUID of encrypted partition) for the next step:
 ```text
 /dev/vda2: UUID="0daddb47-c687-4194-90e4-ac023ea72b5b" TYPE="crypto_LUKS" PARTUUID="96ebe15f-8ec3-4db4-8bd0-877798ecbb37"
 [...]
-/dev/mapper/cryptroot: LABEL="ROOT" UUID="7986ecc9-7656-4ccc-814f-e58f20e241a5" UUID_SUB="a27f7903-4fe4-41cb-9407-47192b592a68" BLOCK_SIZE="4096" TYPE="btrfs"
+/dev/mapper/root: LABEL="ROOT" UUID="7986ecc9-7656-4ccc-814f-e58f20e241a5" UUID_SUB="a27f7903-4fe4-41cb-9407-47192b592a68" BLOCK_SIZE="4096" TYPE="btrfs"
 [...]
 ```
 
@@ -1113,7 +1167,7 @@ or more specific:
 
 - UUID of encrypted partition: `blkid -o value -s UUID /dev/vda2`
   - `0daddb47-c687-4194-90e4-ac023ea72b5b`
-- (UUID of decrypted partition: `blkid -o value -s UUID /dev/mapper/cryptroot`)
+- (UUID of decrypted partition: `blkid -o value -s UUID /dev/mapper/root`)
   - (`7986ecc9-7656-4ccc-814f-e58f20e241a5`)
 
 ##### Unlock the encrypted root partition on boot by setting kernel parameters
@@ -1122,7 +1176,7 @@ or more specific:
   - which should look like this: `GRUB_CMDLINE_LINUX_DEFAULT="loglevel=3 quiet"`
 - add at the end (separated by a space character):
   - *cryptdevice=UUID=deviceUuidOfEncryptedDevice:dmname root=pathOfDecryptedPartitionDmname*
-  - e.g.: `cryptdevice=UUID=0daddb47-c687-4194-90e4-ac023ea72b5b:cryptroot root=/dev/mapper/cryptroot`
+  - e.g.: `cryptdevice=UUID=0daddb47-c687-4194-90e4-ac023ea72b5b:root root=/dev/mapper/root`
 
 If you also dediced to use a keyfile to **automatically** unlock root partition on boot:
 
@@ -1130,7 +1184,7 @@ If you also dediced to use a keyfile to **automatically** unlock root partition 
   - `cryptkey=rootfs:/etc/cryptsetup-keys.d/crypto_keyfile.key`
 
 Altogether it would look like this in our example:
-`GRUB_CMDLINE_LINUX_DEFAULT="loglevel=3 quiet cryptdevice=UUID=0daddb47-c687-4194-90e4-ac023ea72b5b:cryptroot root=/dev/mapper/cryptroot cryptkey=rootfs:/etc/cryptsetup-keys.d/crypto_keyfile.key"`
+`GRUB_CMDLINE_LINUX_DEFAULT="loglevel=3 quiet cryptdevice=UUID=0daddb47-c687-4194-90e4-ac023ea72b5b:root root=/dev/mapper/root cryptkey=rootfs:/etc/cryptsetup-keys.d/crypto_keyfile.key"`
 
 #### Installation GRUB
 
@@ -1185,37 +1239,80 @@ editor   no
 - <https://wiki.archlinux.org/title/Systemd-boot#Adding_loaders>
 - <https://uapi-group.org/specifications/specs/boot_loader_specification/>
 
-##### Default loader and no encryption
+machine-id: `cat /etc/machine-id`
+
+##### Default loader
 
 `vim /boot/loader/entries/arch.conf`
 
+- no encryption:
 ```text
 title      Arch Linux
-machine-id 46ccd99c37fa4e3cb5bfe076152df18f
 linux      /vmlinuz-linux
 initrd     /initramfs-linux.img
 options    rootflags=subvol=/@ root=UUID=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA rw
 ```
+and optional:
+```text
+machine-id 46ccd99c37fa4e3cb5bfe076152df18f
+```
 
-##### Fallback loader and no encryption
+- with encryption:
+  - <https://wiki.archlinux.org/title/Dm-crypt/System_configuration#Using_systemd-cryptsetup-generator>
+```text
+title      Arch Linux
+linux      /vmlinuz-linux
+initrd     /initramfs-linux.img
+options    rootflags=subvol=/@ rd.luks.name=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA=root root=/dev/mapper/root rw
+```
+and optional:
+```text
+machine-id 46ccd99c37fa4e3cb5bfe076152df18f
+```
+
+> :memo: **Note:**
+> When using `rd.luks.name` parameter you can omit `rd.luks.uuid` and vice versa.
+
+- `rd.luks.name`: Specify the name of the mapped device after the LUKS partition is open, the UUID ist the UUID of the LUKS partition
+  - This is equivalent to the second parameter of encrypt's cryptdevice
+- `rd.luks.uuid`: Specify the UUID of the device to be decrypted on boot:
+  - `rootflags=subvol=/@ rd.luks.uuid=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA root=/dev/mapper/root rw`
+
+##### Fallback loader
 
 `vim /boot/loader/entries/arch-fallback.conf`
 
+- no encryption:
 ```text
 title      Arch Linux (fallback initramfs)
-machine-id 46ccd99c37fa4e3cb5bfe076152df18f
 linux      /vmlinuz-linux
 initrd     /initramfs-linux-fallback.img
-options    nowatchdog rootflags=subvol=/@ root=UUID=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA rw
+options    rootflags=subvol=/@ root=UUID=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA rw
+```
+and optional:
+```text
+machine-id 46ccd99c37fa4e3cb5bfe076152df18f
+```
+
+- with encryption:
+```text
+title      Arch Linux (fallback initramfs)
+linux      /vmlinuz-linux
+initrd     /initramfs-linux-fallback.img
+options    rootflags=subvol=/@ rd.luks.name=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA=root root=/dev/mapper/root rw
+```
+and optional:
+```text
+machine-id 46ccd99c37fa4e3cb5bfe076152df18f
 ```
 
 ##### Additional options
 in `/boot/loader/entries/arch.conf` and `/boot/loader/entries/arch-fallback.conf` (separated by space):
-- `nvme_load=YES` # if you have an NVME SSD
+- `nvme_load=YES` # if you have an (NVME) SSD
 - `nowatchdog`
   - <https://wiki.archlinux.org/title/Improving_performance#Watchdogs>
   - ok to set for non-critical Home / Desktop use case
-- `systemd.machine_id=<MACHINEID>` # e.g. systemd.machine_id=46ccd99c37fa4e3cb5bfe076152df18f
+- `systemd.machine_id=<MACHINEID>` # e.g.: `systemd.machine_id=46ccd99c37fa4e3cb5bfe076152df18f` # `cat /etc/machine-id`
 
 #### Check config
 
@@ -1494,33 +1591,23 @@ Disable zswap at runtime:
 
 To disable zswap permanently (which is what we want), add `zswap.enabled=0` to your kernel parameters:
 
-- `vim /etc/default/grub`
-  - append the kernel option `zswap.enabled=0` between the quotes in the `GRUB_CMDLINE_LINUX_DEFAULT` line, separated by space character
-  - e.g.:
-  - `GRUB_CMDLINE_LINUX_DEFAULT="loglevel=3 quiet cryptdevice=UUID=2ee5664a-fb17-4762-8e3d-d8e4b8823815:cryptroot root=/dev/mapper/cryptroot zswap.enabled=0"`
-- re-generate the `grub.cfg` file:
-  - `grub-mkconfig -o /boot/grub/grub.cfg`
+- **Grub**
+  - `vim /etc/default/grub`
+    - append `zswap.enabled=0` between the quotes in the `GRUB_CMDLINE_LINUX_DEFAULT` line, separated by space character
+    - e.g.:
+    - `GRUB_CMDLINE_LINUX_DEFAULT="loglevel=3 quiet cryptdevice=UUID=2ee5664a-fb17-4762-8e3d-d8e4b8823815:root root=/dev/mapper/root zswap.enabled=0"`
+  - re-generate the `grub.cfg` file:
+    - `grub-mkconfig -o /boot/grub/grub.cfg`
+- **Systemd-boot**
+  - modify options for the loader entries config files: `sudo vim /boot/loader/entries/arch.conf` and `sudo vim /boot/loader/entries/arch-fallback.conf`
+    - e.g.: `rootflags=subvol=/@ rd.luks.name=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA=cryptroot root=/dev/mapper/root rw zswap.enabled=0`
 
-Check if disabled:
+Check if disabled (after a reboot):
 
-- `grep -r . /sys/module/zswap/parameters/ | grep /enabled`
-  - you should see an '`N`' after `.../enabled:`
-  - if not: check again after reboot
-
- ```text
- /sys/module/zswap/parameters/enabled:N
- ```
-
-- or
 - `cat /sys/module/zswap/parameters/enabled`
-  - you should see an '`N`
-  - if not: check again after reboot
+  - this should print an `N` if deactivating zswap was successful
 
- ```text
- N
- ```
-
-#### Using zram-genrator
+#### Using zram-generator
 
 - `sudo pacman -S zram-generator`
 - `sudo vim /etc/systemd/zram-generator.conf`
