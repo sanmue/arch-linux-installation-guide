@@ -280,17 +280,27 @@ ssh from your computer into the machine to be installed:
 - <https://wiki.archlinux.org/title/Installation_guide#Connect_to_the_internet>
 &nbsp;
 
-- `ip link` # Ensure your network interface is listed and enabled / UP
+- connect to network
   - Wi-Fi: authenticate to a wireless network using `iwctl`
+    - <https://wiki.archlinux.org/title/Iwd#iwctl>
   - Mobile broadband modem: connect to a mobile network with the `mmcli` utility
+    - <https://wiki.archlinux.org/title/Mobile_broadband_modem#ModemManager>
+- `ip link` # Ensure your network interface is listed and enabled / UP, e.g.:
+```text
+[...]
+2: enp14s0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP mode DEFAULT group default qlen 1000
+[...]
+```
+- verify connection: `ping archlinux.org`
 
 ## Update the system clock
 
 - <https://wiki.archlinux.org/title/Installation_guide#Update_the_system_clock>
 &nbsp;
 
-- `timedatectl set-timezone Europe/Berlin` # optional # set timezone, e.g. for Germany
-- `timedatectl`
+- ensure the system clock is synchronized:
+  - `timedatectl`
+  - `timedatectl set-timezone Europe/Berlin` # optional # set timezone, e.g. for Germany
 
 ## Disk partitioning
 
