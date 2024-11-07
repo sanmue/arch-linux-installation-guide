@@ -288,10 +288,10 @@ ssh from your computer into the machine to be installed:
 - `ip link` # Ensure your network interface is listed and enabled / UP, e.g.:
 ```text
 [...]
-2: enp14s0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP mode DEFAULT group default qlen 1000
+2: enp14s0: <BROADCAST,MULTICAST, [...] state UP [...]
 [...]
 ```
-- verify connection: `ping archlinux.org`
+- verify connection: `ping -c 3 archlinux.org` # send 3 pings
 
 ## Update the system clock
 
