@@ -9,23 +9,21 @@ Some examples of points covered in this guide:
 - UEFI/GPT (with /EFI partition) or BIOS/GPT
 - GRUB bootloader and systemd-boot
 - Btrfs filesystem
-- snapper
-- snapper-rollback (AUR)
-- AUR helper (paru)
-- Encryption (or without encryption)
-  - GRUB bootlaoder: Keyfile for automatically decrypting the encrypted root partition on boot
-- Swap file or zram (no hibernation)
-- Display Driver AMD, Intel, Nvidia
-  - you should check the Arch Wiki for updates / adjust to your grafics card
+- snapper and snap-pac (for taking snapshots of the root subvolume you can rollback to)
+- snapper-rollback (AUR) for easy rollback to a snapshot
+- AUR helper (paru) for easy installation of packages from [AUR](https://aur.archlinux.org/)
+- Encryption (optional)
+  - GRUB bootlaoder: Keyfile for automatically decrypting the root partition on boot
+- Swap file or zram (no hibernation support)
+- Grafics card driver (AMD, Intel, Nvidia)
 - Desktop Environment
 - Firewall (firewalld)
 - Chaotic-AUR as an example for an unofficial user repository
-- Additional font installation
+- Font installation
 - Virtualization (Qemu/KVM)
 
-Using snapper + [snapper-rollback (AUR)](https://aur.archlinux.org/packages/snapper-rollback) (instead of [Timeshift](https://wiki.archlinux.org/title/Timeshift)) inspired by [mpr's video](https://www.youtube.com/watch?v=maIu1d2lAiI) because supports a more flexible btrfs subvolume layout.
-
-[mjkstra's](https://gist.github.com/mjkstra) ['Modern Arch linux installation guide'](https://gist.github.com/mjkstra/96ce7a5689d753e7a6bdd92cdc169bae) was a kicking inspiration doing this guide.
+I found [mjkstra's](https://gist.github.com/mjkstra) ['Modern Arch linux installation guide'](https://gist.github.com/mjkstra/96ce7a5689d753e7a6bdd92cdc169bae) which was a kicking inspiration for creating this guide.
+But I am using snapper and [snapper-rollback (AUR)](https://aur.archlinux.org/packages/snapper-rollback) here (instead of [Timeshift](https://wiki.archlinux.org/title/Timeshift)) inspired by [mpr's video](https://www.youtube.com/watch?v=maIu1d2lAiI) because supports a more flexible btrfs subvolume layout.
 
 ## Table of Content
 
@@ -340,7 +338,7 @@ I/O size (minimum/optimal): 512 bytes / 512 bytes
 #### Info regarding systemd-boot with XBOOTLDR and snapshots/snapper-rollback
 
 > :warning: :warning: :warning: **systemd-boot with XBOOTLDR and snapshots/snapper-rollback**
-> The kernels are on the separate (XBOOTLDR) partition `/boot` and are not snapshotted in the current config.
+> The kernels are on the separate (XBOOTLDR) partition `/boot` are currently not snapshotted.
 > If there were one or more kernel update(s) and you rollback to a state before the kernel update(s), you may face incompatabilities:
 > You have old packages and the new kernel (the fallback kernel image may work if there was just one kernel update).
 >
