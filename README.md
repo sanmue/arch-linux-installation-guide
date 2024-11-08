@@ -108,7 +108,7 @@ But I am using snapper and [snapper-rollback (AUR)](https://aur.archlinux.org/pa
       - [Installation GRUB](#installation-grub)
       - [Configuration](#configuration)
     - [Systemd-boot](#systemd-boot)
-      - [Installing the UEFI boot manager using XBOOTLDR](#installing-the-uefi-boot-manager-using-xbootldr)
+      - [Installing the UEFI boot manager](#installing-the-uefi-boot-manager)
       - [Automatic update via systemd service](#automatic-update-via-systemd-service)
       - [Loader configuration](#loader-configuration)
       - [Adding loaders](#adding-loaders)
@@ -1275,11 +1275,11 @@ Create config file:
 
 `systemd-boot` is shipped with the systemd package which is a dependency of the `base` meta package, so no additional packages need to be installed manually.
 
-#### Installing the UEFI boot manager using XBOOTLDR
+#### Installing the UEFI boot manager
 
 - <https://wiki.archlinux.org/title/Systemd-boot#Installation_using_XBOOTLDR>
 
-`bootctl --esp-path=/efi --boot-path=/boot install`
+If you set up with an extended boot partition (XBOOTLDR): `bootctl --esp-path=/efi --boot-path=/boot install`
 
 #### Automatic update via systemd service
 
@@ -1295,18 +1295,21 @@ Create config file:
 - `vim /efi/loader/loader.conf`
 
 ```text
-default  arch.conf
-timeout  4
+default      arch.conf
+timeout      4
 console-mode max
-editor   no
+editor       no
 ```
+
+> :memo: **Delimiter**
+> Use **spaces** (NOT tabs) as delimiter.
 
 #### Adding loaders
 
 - <https://wiki.archlinux.org/title/Systemd-boot#Adding_loaders>
 - <https://uapi-group.org/specifications/specs/boot_loader_specification/>
 
-machine-id: `cat /etc/machine-id`
+machine-id: `cat /etc/machine-id` # prints e.g.: `46ccd99c37fa4e3cb5bfe076152df18f`
 
 ##### Default loader
 
@@ -1319,10 +1322,6 @@ linux      /vmlinuz-linux
 initrd     /initramfs-linux.img
 options    rootflags=subvol=/@ root=UUID=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA rw
 ```
-and optional:
-```text
-machine-id 46ccd99c37fa4e3cb5bfe076152df18f
-```
 
 - with encryption:
   - <https://wiki.archlinux.org/title/Dm-crypt/System_configuration#Using_systemd-cryptsetup-generator>
@@ -1332,18 +1331,19 @@ linux      /vmlinuz-linux
 initrd     /initramfs-linux.img
 options    rootflags=subvol=/@ rd.luks.name=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA=root root=/dev/mapper/root rw
 ```
-and optional:
+
+- and optional (encryption and no encryption) add to conf file:
 ```text
 machine-id 46ccd99c37fa4e3cb5bfe076152df18f
 ```
 
 > :memo: **Note:**
 > When using `rd.luks.name` parameter you can omit `rd.luks.uuid` and vice versa.
-
-- `rd.luks.name`: Specify the name of the mapped device after the LUKS partition is open, the UUID ist the UUID of the LUKS partition
-  - This is equivalent to the second parameter of encrypt's cryptdevice
-- `rd.luks.uuid`: Specify the UUID of the device to be decrypted on boot:
-  - `rootflags=subvol=/@ rd.luks.uuid=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA root=/dev/mapper/root rw`
+>
+> - `rd.luks.name`: Specify the name of the mapped device after the LUKS partition is open, the UUID ist the UUID of the LUKS partition
+>   - This is equivalent to the second parameter of encrypt's cryptdevice
+> - `rd.luks.uuid`: Specify the UUID of the device to be decrypted on boot:
+>   - `rootflags=subvol=/@ rd.luks.uuid=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA root=/dev/mapper/root rw`
 
 ##### Fallback loader
 
@@ -1356,10 +1356,6 @@ linux      /vmlinuz-linux
 initrd     /initramfs-linux-fallback.img
 options    rootflags=subvol=/@ root=UUID=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA rw
 ```
-and optional:
-```text
-machine-id 46ccd99c37fa4e3cb5bfe076152df18f
-```
 
 - with encryption:
 ```text
@@ -1368,7 +1364,8 @@ linux      /vmlinuz-linux
 initrd     /initramfs-linux-fallback.img
 options    rootflags=subvol=/@ rd.luks.name=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA=root root=/dev/mapper/root rw
 ```
-and optional:
+
+- and optional (encryption and no encryption) add to conf file:
 ```text
 machine-id 46ccd99c37fa4e3cb5bfe076152df18f
 ```
