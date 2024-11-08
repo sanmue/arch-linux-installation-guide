@@ -41,6 +41,7 @@ Using snapper + [snapper-rollback (AUR)](https://aur.archlinux.org/packages/snap
   - [Disk partitioning](#disk-partitioning)
     - [List available devices](#list-available-devices)
     - [UEFI/GPT](#uefigpt)
+      - [Info regarding systemd-boot with XBOOTLDR and snapshots/snapper-rollback](#info-regarding-systemd-boot-with-xbootldr-and-snapshotssnapper-rollback)
       - [Create Partitions](#create-partitions)
       - [Current partition table UEFI/GPT and Grub bootloader](#current-partition-table-uefigpt-and-grub-bootloader)
       - [Current partition table UEFI/GPT and systemd-boot](#current-partition-table-uefigpt-and-systemd-boot)
@@ -335,6 +336,19 @@ I/O size (minimum/optimal): 512 bytes / 512 bytes
 ```
 
 ### UEFI/GPT
+
+#### Info regarding systemd-boot with XBOOTLDR and snapshots/snapper-rollback
+
+> :warning: :warning: :warning: **systemd-boot with XBOOTLDR and snapshots/snapper-rollback**
+> The kernels are on the separate (XBOOTLDR) partition `/boot` and are not snapshotted in the current config.
+> If there were one or more kernel update(s) and you rollback to a state before the kernel update(s), you may face incompatabilities:
+> You have old packages and the new kernel (the fallback kernel image may work if there was just one kernel update).
+>
+> One solution could be, when there is a kernel update, to copy the kernel images to the snapshotted root subvolume `/@` first (e.g. via hook).
+> When you roll back, the correspondig kernel image from root subvolume is copied to the `/boot` (XBOOTLDR) partition first (overwriting the existing ones), e.g. also via a hook.
+> So the kernel image state would match the state of your packages.
+>
+> **TODO**
 
 #### Create Partitions
 
