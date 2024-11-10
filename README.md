@@ -19,7 +19,7 @@ Some examples of points covered in this guide:
 - [Desktop Environment](https://wiki.archlinux.org/title/Desktop_environment)
 - [Firewall](https://wiki.archlinux.org/title/Category:Firewalls) ([firewalld](https://wiki.archlinux.org/title/Firewalld))
 - [Chaotic-AUR](https://aur.chaotic.cx/) as an example for an [unofficial user repository](https://wiki.archlinux.org/title/Unofficial_user_repositories) besides [AUR](https://wiki.archlinux.org/title/Arch_User_Repository)
-- Font installation
+- Font [installation](https://wiki.archlinux.org/title/Fonts#Installation)
 - Virtualization ([libvirt](https://wiki.archlinux.org/title/Libvirt), [Qemu/KVM](https://wiki.archlinux.org/title/QEMU))
 
 I found [mjkstra's](https://gist.github.com/mjkstra) ['Modern Arch linux installation guide'](https://gist.github.com/mjkstra/96ce7a5689d753e7a6bdd92cdc169bae) which was a kicking inspiration for creating this guide.
