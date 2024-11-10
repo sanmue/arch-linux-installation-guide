@@ -1,4 +1,4 @@
-# Arch Linux Installation Guide
+# Arch Linux Installation Guide - A Practical Example
 
 ## Intro
 
@@ -6,28 +6,28 @@ This Arch Linux installation guide may be seen as a practical example following 
 
 Some examples of points covered in this guide:
 
-- UEFI/GPT (with /EFI partition) or BIOS/GPT
-- GRUB bootloader and systemd-boot
-- Btrfs filesystem
-- snapper and snap-pac (for taking snapshots of the root subvolume you can rollback to)
-- snapper-rollback (AUR) for easy rollback to a snapshot
-- AUR helper (paru) for easy installation of packages from [AUR](https://aur.archlinux.org/)
-- Encryption (optional)
-  - GRUB bootlaoder: Keyfile for automatically decrypting the root partition on boot
-- Swap file or zram (no hibernation support)
-- Grafics card driver (AMD, Intel, Nvidia)
-- Desktop Environment
-- Firewall (firewalld)
-- Chaotic-AUR as an example for an unofficial user repository
+- [UEFI/GPT](https://wiki.archlinux.org/title/Partitioning#UEFI/GPT_layout_example) (with [/EFI partition](https://wiki.archlinux.org/title/EFI_system_partition)) or [BIOS/GPT](https://wiki.archlinux.org/title/Partitioning#BIOS/GPT_layout_example) - [partition layout](https://wiki.archlinux.org/title/Partitioning#Partition_scheme)
+- [GRUB](https://wiki.archlinux.org/title/GRUB) bootloader and [systemd-boot](https://wiki.archlinux.org/title/Systemd-boot)
+- [Btrfs](https://wiki.archlinux.org/title/Btrfs) filesystem and [subvolumes](https://wiki.archlinux.org/title/Btrfs#Subvolumes)
+- [snapper](https://wiki.archlinux.org/title/Snapper) and [snap-pac](https://wiki.archlinux.org/title/Snapper#Wrapping_pacman_transactions_in_snapshots) (for taking snapshots of the root subvolume you can rollback to)
+- [snapper-rollback (AUR)](https://aur.archlinux.org/packages/snapper-rollback) for easy rollback to a snapshot
+- [AUR helper](https://wiki.archlinux.org/title/AUR_helpers#Pacman_wrappers) ([paru](https://aur.archlinux.org/packages/paru)) for easy installation of packages from [AUR](https://aur.archlinux.org/)
+- [Encryption](https://wiki.archlinux.org/title/Dm-crypt) with LUKS
+  - GRUB bootlaoder: [Keyfile](https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#Keyfiles) for automatically [unlocking the root partition on boot](https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#Unlocking_the_root_partition_at_boot) (with [keyfile embedded in initramfs](https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#With_a_keyfile_embedded_in_the_initramfs))
+- [Swap file](https://wiki.archlinux.org/title/Swap#Swap_file) ([btrfs specific](https://wiki.archlinux.org/title/Btrfs#Swap_file) creation) or [zram](https://wiki.archlinux.org/title/Zram) (no [hibernation](https://wiki.archlinux.org/title/Power_management/Suspend_and_hibernate#Hibernation))
+- [Grafics card driver](https://wiki.archlinux.org/title/Xorg#Driver_installation) (AMD, Intel, Nvidia)
+- [Desktop Environment](https://wiki.archlinux.org/title/Desktop_environment)
+- [Firewall](https://wiki.archlinux.org/title/Category:Firewalls) ([firewalld](https://wiki.archlinux.org/title/Firewalld))
+- [Chaotic-AUR](https://aur.chaotic.cx/) as an example for an [unofficial user repository](https://wiki.archlinux.org/title/Unofficial_user_repositories) besides [AUR](https://wiki.archlinux.org/title/Arch_User_Repository)
 - Font installation
-- Virtualization (Qemu/KVM)
+- Virtualization ([libvirt](https://wiki.archlinux.org/title/Libvirt), [Qemu/KVM](https://wiki.archlinux.org/title/QEMU))
 
 I found [mjkstra's](https://gist.github.com/mjkstra) ['Modern Arch linux installation guide'](https://gist.github.com/mjkstra/96ce7a5689d753e7a6bdd92cdc169bae) which was a kicking inspiration for creating this guide.
 But I am using snapper and [snapper-rollback (AUR)](https://aur.archlinux.org/packages/snapper-rollback) here (instead of [Timeshift](https://wiki.archlinux.org/title/Timeshift)) inspired by [mpr's video](https://www.youtube.com/watch?v=maIu1d2lAiI) because supports a more flexible btrfs subvolume layout.
 
 ## Table of Content
 
-- [Arch Linux Installation Guide](#arch-linux-installation-guide)
+- [Arch Linux Installation Guide - A Practical Example](#arch-linux-installation-guide---a-practical-example)
   - [Intro](#intro)
   - [Table of Content](#table-of-content)
   - [=== Pre-installation steps ===](#-pre-installation-steps-)
@@ -70,7 +70,7 @@ But I am using snapper and [snapper-rollback (AUR)](https://aur.archlinux.org/pa
       - [UEFI/GPT and GRUB and with encryption](#uefigpt-and-grub-and-with-encryption)
       - [UEFI/GPT and Grub and no encryption](#uefigpt-and-grub-and-no-encryption)
       - [UEFI/GPT and systemd-boot and no encryption](#uefigpt-and-systemd-boot-and-no-encryption)
-      - [BIOS/GPT and Grub and with encryption:](#biosgpt-and-grub-and-with-encryption)
+      - [BIOS/GPT and Grub and with encryption](#biosgpt-and-grub-and-with-encryption)
   - [Installation](#installation)
     - [Select the mirrors](#select-the-mirrors)
     - [Install essential packages](#install-essential-packages)
@@ -347,6 +347,7 @@ I/O size (minimum/optimal): 512 bytes / 512 bytes
 > So the kernel image state would match the state of your packages.
 >
 > **TODO**
+> e.g. like: <https://wiki.archlinux.org/title/EFI_system_partition#Using_systemd>
 
 #### Create Partitions
 
@@ -365,9 +366,12 @@ t           # change type
 ```
 
 **Only for systemd-boot when using XBOOTLDR:**
+
+- <https://wiki.archlinux.org/title/Systemd-boot#Installation_using_XBOOTLDR>
+
 ```text
 n
-,, +1500M   # extended boot partition, size 1,5 GB
+,, +1.5G    # or: +1500M # extended boot partition, size 1,5 GB 
 t           # change type
 ,
 142         # 'Linux extended boot'
@@ -472,8 +476,8 @@ Device     Start      End  Sectors Size Type
 #### Encrypting our root partition
 
 - <https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#Encrypting_devices_with_LUKS_mode>
-- **Systemd-boot**:
-  - `cryptsetup luksFormat /dev/vda2`
+- **Systemd-boot + XBOOTLDR**:
+  - `cryptsetup luksFormat /dev/vda3`
 - **Grub**:
   - `cryptsetup luksFormat --pbkdf pbkdf2 /dev/vda2`
   - <https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#Encryption_options_for_LUKS_mode>
@@ -485,6 +489,8 @@ Device     Start      End  Sectors Size Type
 #### Open the LUKS encrypted root partition
 
 - <https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#Unlocking/Mapping_LUKS_partitions_with_the_device_mapper>
+&nbsp;
+
 - `cryptsetup open /dev/vda2 root`
   - Once opened, the root partition device address would be `/dev/mapper/root` (device mapper name is `root`) instead of the partition `/dev/vda2`.
   - you should make a note, we will need this info later
@@ -666,6 +672,9 @@ Subvolume-ID 5 (top level 5) = btrfsroot ("/")
 
 ### Mount the efi partition
 
+- <https://wiki.archlinux.org/title/Talk:EFI_system_partition#Mountpoint_umask>
+  - `fmask` + `dmask` mount options are used by EndeavourOS (as of 10/2024)
+
 Only UEFI, skip if BIOS boot mode
 
 - `mount /dev/vda1 -o fmask=0137,dmask=0027 /mnt/efi` # adjust to your device path
@@ -783,7 +792,7 @@ vda    254:0    0   50G  0 disk
                                 /
 ```
 
-#### BIOS/GPT and Grub and with encryption:
+#### BIOS/GPT and Grub and with encryption
 
 `lsblk -p`
 
@@ -885,9 +894,9 @@ All packages above together:
 > - to:
 >   - `UUID=7986ecc9-7656-4ccc-814f-e58f20e241a5 /          btrfs      rw,noatime,compress=zstd:3,space_cache=v2,subvol=/@ 0 0`
 
-> :memo: The UUIDs shown at 'with enryption' or 'without encrypion' witjin following points would match.
-> They are only different because it was a seperate new installation both times with new random UUIDs generated.
-
+> :memo: The UUIDs shown at 'with enryption' or 'without encrypion' within following points would match.
+> They are only different because it was a seperate new installation each time with new random UUIDs generated.
+ge
 #### UEFI/GPT with encryption and Grub
 
 ```text
@@ -1337,6 +1346,13 @@ options    rootflags=subvol=/@ rd.luks.name=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA
 machine-id 46ccd99c37fa4e3cb5bfe076152df18f
 ```
 
+- and optional (encryption and no encryption) add to `options` in conf file:
+  - `systemd.machine-id=46ccd99c37fa4e3cb5bfe076152df18f`
+  - e.g. with enryption: 
+    ```text
+    `options rootflags=subvol=/@ rd.luks.name=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA=root root=/dev/mapper/root rw systemd.machine-id=46ccd99c37fa4e3cb5bfe076152df18f`
+    ```
+
 > :memo: **Note:**
 > When using `rd.luks.name` parameter you can omit `rd.luks.uuid` and vice versa.
 >
@@ -1443,7 +1459,7 @@ in `/boot/loader/entries/arch.conf` and `/boot/loader/entries/arch-fallback.conf
 - optional / later: add user to some groups
   - `usermod -aG sys,adm,network,scanner,power,uucp,audio,lp,rfkill,video,storage,optical,users USERNAME`
 
-- optional: change shell to another shell, e.g. zsh
+- optional: change standard shell of the user to another shell, e.g. zsh
   - `pacman -S --needed zsh` # install zsh
   - `usermod -s /bin/zsh USERNAME` # change shell to zsh
 
@@ -1504,14 +1520,12 @@ Connect to (virtual) machine:
 &nbsp;
 
 - `sudo umount /.snapshots`
-- `sudo rm -r /.snapshots`
-- `sudo snapper -c root create-config /` # create new config named 'root'
-&nbsp;
-
-- `sudo btrfs subvolume delete /.snapshots`
-- `sudo mkdir /.snapshots`
-- `sudo mount -a` # mount all filesystems mentioned in fstab
-  - (or specify explicitly, e.g. root partition not encrypted: `sudo mount /dev/vda2 -o subvol=@snapshots,compress=zstd,noatime /.snapshots` # adjust to your device path)
+- `sudo rm -r /.snapshots` # # delete **folder** `/.snapshots`, since it will be created when creating snapper config (which would complain otherwise) in the next step
+- `sudo snapper -c root create-config /` # # create new config named 'root'
+- `sudo btrfs subvolume delete /.snapshots` # # delete **subvolume** `.snappshots` created with the last command (we already have subvolume `@snapshots`)
+- `sudo mkdir /.snapshots` # # create **folder** `/.snapshots` again, since was also deleted with the last command
+- `sudo mount -a` # # mount all filesystems mentioned in fstab
+  - or specify explicitly, e.g. no encryption: `sudo mount /dev/vda2 -o subvol=@snapshots,compress=zstd,noatime /.snapshots` # adjust to your device path
 
 > :memo: **Note:**
 > This will make all snapshots that snapper creates be stored outside of the @ subvolume, so that @ can easily be replaced anytime without losing the snapper snapshots.
@@ -1600,10 +1614,8 @@ Script to rollback snapper snapshots (comfortable via CLI of a booted system)
  2024-09-30 10:30:10,563 - INFO - [DRY-RUN MODE] Rollback to /.btrfsroot/@.snapshots/<snapshot-number>/snapshot complete. Reboot to finish
  ```
 
-&nbsp;
-
 > :memo: **Note:**
-> <https://btrfs.readthedocs.io/en/latest/Subvolumes.html>:
+> <https://btrfs.readthedocs.io/en/latest/Subvolumes.html>
 > ... the subvolume that will be mounted by default, unless the default subvolume has been changed (see `btrfs subvolume set-default`).
 
 - `sudo snapper-rollback <snapshot-number>` # really do the rollback now
@@ -1611,7 +1623,8 @@ Script to rollback snapper snapshots (comfortable via CLI of a booted system)
 &nbsp;
 
 - <https://wiki.archlinux.org/title/Snapper#Single_snapshots>
-- `sudo snapper -c root create -c number --description "after snapper-rollback <snapshot-number>"`
+- you could manually create a new snapshot after the rollback and reboot to see in the snapshot list for better unterstanding what has been going on, e.g.:
+  - `sudo snapper -c root create -c number --description "after snapper-rollback <snapshot-number>"`
 
 ### INSERTION: Config zram as swap
 
