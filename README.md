@@ -280,11 +280,10 @@ ssh from your computer into the machine to be installed:
 
 ## Excursus: Choosing a bootloader
 
-Although the actual installation of the bootloader takes place later, there are some points where you already have to know which [bootlaoder](https://wiki.archlinux.org/title/Arch_boot_process#Boot_loader) you want use.
+Although the actual installation of the bootloader takes place later, there are some points where you already have to know which [bootlaoder](https://wiki.archlinux.org/title/Arch_boot_process#Boot_loader) you want to use.
 
 The ones covered in this guide are:
-- systemd-boot: <https://wiki.archlinux.org/title/Systemd-boot>
-and
+- systemd-boot: <https://wiki.archlinux.org/title/Systemd-boot> and
 - GRUB: <https://wiki.archlinux.org/title/GRUB>
 
 > :memo: **Note**
@@ -294,8 +293,8 @@ and
 >
 > For **BIOS boot mode** you have to use a bootloader supporting it, e.g. GRUB bootloader.
 
-`archinstaller`, EndeavourOS, ... seem to use systemd-boot for UEFI boot mode and GRUB for BIOS boot mode as default setting (as of 10/2024).
-Use the boot loader that best fits your needs.
+`archinstaller`, EndeavourOS, ... seem to use systemd-boot for UEFI boot mode and GRUB for BIOS boot mode as suggested default setting (as of 10/2024).
+Decide for whatever bootloader you like best.
 
 ## Internet connection
 
