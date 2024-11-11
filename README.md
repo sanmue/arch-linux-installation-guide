@@ -34,6 +34,7 @@ But I am using snapper and [snapper-rollback (AUR)](https://aur.archlinux.org/pa
   - [Keyboard layout and font](#keyboard-layout-and-font)
   - [Excursus: Connecting to the machine to be installed via ssh](#excursus-connecting-to-the-machine-to-be-installed-via-ssh)
   - [Verify Boot Mode](#verify-boot-mode)
+  - [Excursus: Choosing a bootloader](#excursus-choosing-a-bootloader)
   - [Internet connection](#internet-connection)
   - [Update the system clock](#update-the-system-clock)
   - [Disk partitioning](#disk-partitioning)
@@ -95,7 +96,7 @@ But I am using snapper and [snapper-rollback (AUR)](https://aur.archlinux.org/pa
       - [Hooks](#hooks)
     - [Creating new initramfs](#creating-new-initramfs)
   - [Boot loader](#boot-loader)
-    - [Grub](#grub)
+    - [GRUB](#grub)
       - [Config default grub](#config-default-grub)
         - [Encrypted the root partition](#encrypted-the-root-partition)
         - [Preparing next step: get UUID of encrypted partition](#preparing-next-step-get-uuid-of-encrypted-partition)
@@ -277,10 +278,24 @@ ssh from your computer into the machine to be installed:
     ```
     - which means you are in BIOS Boot mode
 
-> :warning: **`systemd-boot`** bootloader supports only UEFI boot mode.
+## Excursus: Choosing a bootloader
+
+Although the actual installation of the bootloader takes place later, there are some points where you already have to know which [bootlaoder](https://wiki.archlinux.org/title/Arch_boot_process#Boot_loader) you want use.
+
+The ones covered in this guide are:
+- systemd-boot: <https://wiki.archlinux.org/title/Systemd-boot>
+and
+- GRUB: <https://wiki.archlinux.org/title/GRUB>
+
+> :memo: **Note**
+> 
+> **systemd-boot** bootloader supports only UEFI boot mode.
+> **GRUB** bootloader supports UEFI and BIOS boot mode.
 >
-> For BIOS boot mode you have to use Grub bootloader (or another bootlaoder supporting BIOS boot mode).
-> Only Grub and systemd-boot are addressed in this guide.
+> For **BIOS boot mode** you have to use a bootloader supporting it, e.g. GRUB bootloader.
+
+`archinstaller`, EndeavourOS, ... seem to use systemd-boot for UEFI boot mode and GRUB for BIOS boot mode as default setting (as of 10/2024).
+Use the boot loader that best fits your needs.
 
 ## Internet connection
 
@@ -353,7 +368,7 @@ I/O size (minimum/optimal): 512 bytes / 512 bytes
 
 - `,` means: press enter to accept the default value
 
-**Grub and systemd-boot:**
+**GRUB and systemd-boot:**
 ```text
 g           # gpt partition table
 
@@ -391,7 +406,7 @@ Or use [MBR](https://wiki.archlinux.org/title/Partitioning#BIOS/MBR_layout_examp
 
 #### Create partitions
 
-**Only Grub:**
+**Only GRUB:**
 
 `fdisk /dev/vda`
 
@@ -447,7 +462,7 @@ Device     Start      End  Sectors Size Type
 - <https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#Encrypting_devices_with_LUKS_mode>
 - **Systemd-boot + XBOOTLDR**:
   - `cryptsetup luksFormat /dev/vda3`
-- **Grub**:
+- **GRUB**:
   - `cryptsetup luksFormat --pbkdf pbkdf2 /dev/vda2`
   - <https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#Encryption_options_for_LUKS_mode>
     - Argon2id (cryptsetup default) and Argon2i PBKDFs are not supported ([GRUB bug #59409](https://savannah.gnu.org/bugs/?59409)), only PBKDF2 is
@@ -475,7 +490,7 @@ Device     Start      End  Sectors Size Type
 > 
 > I used to set the device mapper name to `cryptroot`.
 > Systemd-boot sets device mapper name to `root` by default (and seems to like the partition label to be named corresponding, if set).
-> To harmonize the naming I changed the device mapper name for `Grub` und `systemd-boot` to `root` and the root partition label (see: Format partitions).
+> To harmonize the naming I changed the device mapper name for `GRUB` und `systemd-boot` to `root` and the root partition label (see: Format partitions).
 >
 > Remark:
 > When using device-mapper name and root partition label `cryptroot`, systemd-boot still works, but it looks a bit ugly:
@@ -524,15 +539,15 @@ NAME                      MAJ:MIN RM   SIZE RO TYPE  MOUNTPOINTS
 
 #### Note regarding password input at boot when using encryption
 
-**Grub:** When not using a keyfile to decrypt the encrypted root partition: when starting your machine you will be asked twice for a password for decrypting: 1x bootloader, 1x encrypted root partition.
+**GRUB:** When not using a keyfile to decrypt the encrypted root partition: when starting your machine you will be asked twice for a password for decrypting: 1x bootloader, 1x encrypted root partition.
 **Systemd-boot:** We do not use a keyfile in this guide (/efi partition is not encrypted). You will currently only be asked once for the password to decrypt the root partition.
 
 > :memo: **keyfile**
 > You can generate and add a keyfile to [unlock encrypted root at boot](https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#With_a_keyfile_embedded_in_the_initramfs), which has to be accessible only by root user.
 >
-> The steps will be described at a later point in this guide (for Grub), see: 'Initramfs (Create initial ramdisk environment)', and 'BOOT LOADER -> GRUB' when in chroot environment.
+> The steps will be described at a later point in this guide (for GRUB), see: 'Initramfs (Create initial ramdisk environment)', and 'BOOT LOADER -> GRUB' when in chroot environment.
 >
-> Grub: Since you will still have to enter a secure passphrase once on boot, and `/boot` is encrypted (on encrypted root partition), and for UEFI: ESP ist mounted to `/efi`, there should be no real security disadvantages.
+> GRUB: Since you will still have to enter a secure passphrase once on boot, and `/boot` is encrypted (on encrypted root partition), and for UEFI: ESP ist mounted to `/efi`, there should be no real security disadvantages.
 
 - Unlocking the root partition at boot, with a keyfile embedded in the initramfs
   - <https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#With_a_keyfile_embedded_in_the_initramfs>
@@ -551,7 +566,7 @@ NAME                      MAJ:MIN RM   SIZE RO TYPE  MOUNTPOINTS
 - Root partition
   - encrypted: `mkfs.btrfs -L ROOT /dev/mapper/root`
     - the device `/dev/mapper/root` can then be mounted like any other partition
-  - not encrypted: `mkfs.btrfs -L ROOT /dev/vda2` # main partition # adjust to your device path, e.g. /dev/vda2 (for Grub bootloader in our example)
+  - not encrypted: `mkfs.btrfs -L ROOT /dev/vda2` # main partition # adjust to your device path, e.g. /dev/vda2 (for GRUB bootloader in our example)
 
 ## Btrfs subvolumes
 
@@ -652,7 +667,7 @@ Adjust to your device path.
 
 > :warning: **If root partition is encrypted:**
 > Replace `/dev/vda2` (root partition) with `/dev/mapper/root` (`root` = device mapper name used for enryption / opening encrypted root partition)
-> The mount command ist the same for Grub and systemd-boot.
+> The mount command ist the same for GRUB and systemd-boot.
 
 - home
   - encryption: `mount /dev/mapper/root -o subvol=/@home,compress=zstd,noatime /mnt/home`
@@ -775,7 +790,7 @@ And install the rest while chrooted into the new system (e.g. see: Post-installa
 
 But we could also install some more packages here:
 
-- e.g. Grub + UEFI: `pacstrap -K /mnt base linux linux-firmware linux-headers   grub efibootmgr   btrfs-progs mtools   base-devel sudo man-db man-pages texinfo   networkmanager   reflector   openssh vim rsync terminus-font`
+- e.g. GRUB + UEFI: `pacstrap -K /mnt base linux linux-firmware linux-headers   grub efibootmgr   btrfs-progs mtools   base-devel sudo man-db man-pages texinfo   networkmanager   reflector   openssh vim rsync terminus-font`
 - e.g. Systemd-boot: same as above, but without the `grub` package
 &nbsp;
 
@@ -794,7 +809,7 @@ But we could also install some more packages here:
 #### Summarized package list
 
 All packages above together:
-- e.g. Grub + UEFI: `pacstrap -K /mnt   base linux linux-headers linux-lts linux-lts-headers linux-firmware   grub efibootmgr   btrfs-progs mtools e2fsprogs   base-devel sudo man-db man-pages texinfo   networkmanager   reflector   openssh vim rsync terminus-font   amd-ucode intel-ucode   pipewire pipewire-alsa pipewire-pulse pipewire-jack wireplumber sof-firmware   bluez bluez-utils   zsh`
+- e.g. GRUB + UEFI: `pacstrap -K /mnt   base linux linux-headers linux-lts linux-lts-headers linux-firmware   grub efibootmgr   btrfs-progs mtools e2fsprogs   base-devel sudo man-db man-pages texinfo   networkmanager   reflector   openssh vim rsync terminus-font   amd-ucode intel-ucode   pipewire pipewire-alsa pipewire-pulse pipewire-jack wireplumber sof-firmware   bluez bluez-utils   zsh`
 - e.g. Systemd-boot (UEFI only): same as above, but without the `grub` package
 
 ## Configure the system
@@ -1077,13 +1092,13 @@ For LVM, **system** encryption or RAID, modify mkinitcpio.conf(5) (`/etc/mkinitc
 
 - `vim /etc/mkinitcpio.conf`
 - No Encryption:
-  - Grub:
+  - GRUB:
     - `HOOKS`: default should be ok, nothing to do
   - Systemd-boot:
     - `HOOKS`: replace `udev` with `systemd` and `keymap consolefont` with `sd-vconsole`
       - results in e.g.: `HOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block filesystems fsck)`
 - Encryption (LUKS):
-  - Grub:
+  - GRUB:
     - `HOOKS`: add **encrypt** before `filesystems`
       - results in e.g.: `HOOKS=(base udev autodetect microcode modconf kms keyboard keymap consolefont block` **encrypt** `filesystems fsck)`
   - Systemd-boot:
@@ -1100,7 +1115,7 @@ For LVM, **system** encryption or RAID, modify mkinitcpio.conf(5) (`/etc/mkinitc
 - <https://wiki.archlinux.org/title/Installation_guide#Boot_loader>
 - <https://wiki.archlinux.org/title/Arch_boot_process#Boot_loader>
 
-### Grub
+### GRUB
 
 - <https://wiki.archlinux.org/title/GRUB>
 - <https://wiki.archlinux.org/title/GRUB#Generate_the_main_configuration_file>
@@ -1110,7 +1125,8 @@ For LVM, **system** encryption or RAID, modify mkinitcpio.conf(5) (`/etc/mkinitc
 - <https://wiki.archlinux.org/title/Kernel_parameters#GRUB>
 - <https://wiki.archlinux.org/title/GRUB#GRUB_rescue_and_encrypted_/boot>
 
-> :memo: **Note:** Seperate `/efi` directory from the `/boot` directory
+> :memo: **Note:** Seperate `/efi` directory from the `/boot` directory.
+> 
 > Boot related files are saved in folder `/boot`, which is a subfolder of root and therefore are backed up in snapshots.
 > If we roll back then the versions of the files in `/boot` will be consistent with the remaining filsystem.
 > Which would not necessarily be the case if `/boot` is on the `/efi` partition or a seperate `/boot` partition, which are not snapshotted.
@@ -1865,7 +1881,7 @@ rollback() {
 
 To disable zswap permanently add `zswap.enabled=0` to your kernel parameters:
 
-- **Grub**
+- **GRUB**
   - `vim /etc/default/grub`
     - append `zswap.enabled=0` between the quotes in the `GRUB_CMDLINE_LINUX_DEFAULT` line, separated by space character
     - e.g.:
