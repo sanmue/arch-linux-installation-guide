@@ -22,7 +22,7 @@ Some examples of points covered in this guide:
 - Font [installation](https://wiki.archlinux.org/title/Fonts#Installation)
 - Virtualization ([libvirt](https://wiki.archlinux.org/title/Libvirt), [Qemu/KVM](https://wiki.archlinux.org/title/QEMU))
 
-I found [mjkstra's](https://gist.github.com/mjkstra) ['Modern Arch linux installation guide'](https://gist.github.com/mjkstra/96ce7a5689d753e7a6bdd92cdc169bae) which was a kicking inspiration for creating this guide.
+I found [mjkstra's](https://gist.github.com/mjkstra) ['Modern Arch linux installation guide'](https://gist.github.com/mjkstra/96ce7a5689d753e7a6bdd92cdc169bae) which was a pusher for creating this guide.
 But I am using snapper and [snapper-rollback (AUR)](https://aur.archlinux.org/packages/snapper-rollback) here (instead of [Timeshift](https://wiki.archlinux.org/title/Timeshift)) inspired by [mpr's video](https://www.youtube.com/watch?v=maIu1d2lAiI) because supports a more flexible btrfs subvolume layout.
 
 ## Table of Content
@@ -39,10 +39,8 @@ But I am using snapper and [snapper-rollback (AUR)](https://aur.archlinux.org/pa
   - [Disk partitioning](#disk-partitioning)
     - [List available devices](#list-available-devices)
     - [UEFI/GPT](#uefigpt)
-      - [Info regarding systemd-boot with XBOOTLDR and snapshots/snapper-rollback](#info-regarding-systemd-boot-with-xbootldr-and-snapshotssnapper-rollback)
       - [Create Partitions](#create-partitions)
-      - [Current partition table UEFI/GPT and Grub bootloader](#current-partition-table-uefigpt-and-grub-bootloader)
-      - [Current partition table UEFI/GPT and systemd-boot](#current-partition-table-uefigpt-and-systemd-boot)
+      - [Current partition table UEFI/GPT](#current-partition-table-uefigpt)
     - [BIOS/GPT](#biosgpt)
       - [Create partitions](#create-partitions-1)
       - [Current partition table BIOS/GPT](#current-partition-table-biosgpt)
@@ -51,7 +49,7 @@ But I am using snapper and [snapper-rollback (AUR)](https://aur.archlinux.org/pa
       - [Encrypting our root partition](#encrypting-our-root-partition)
       - [Open the LUKS encrypted root partition](#open-the-luks-encrypted-root-partition)
       - [Show current block device list](#show-current-block-device-list)
-      - [Note regarding password input at boot](#note-regarding-password-input-at-boot)
+      - [Note regarding password input at boot when using encryption](#note-regarding-password-input-at-boot-when-using-encryption)
   - [Format partitions](#format-partitions)
   - [Btrfs subvolumes](#btrfs-subvolumes)
     - [Mount root partiton](#mount-root-partiton)
@@ -62,15 +60,13 @@ But I am using snapper and [snapper-rollback (AUR)](https://aur.archlinux.org/pa
     - [Mount partition to install the system](#mount-partition-to-install-the-system)
     - [Create folders for the subvolumes and partitions (mountpoints)](#create-folders-for-the-subvolumes-and-partitions-mountpoints)
     - [Mount the efi partition](#mount-the-efi-partition)
-    - [Mount the extended boot partition](#mount-the-extended-boot-partition)
     - [Mount the subvolumes](#mount-the-subvolumes)
     - [Mount btrfsroot for 'snapper-rollback'](#mount-btrfsroot-for-snapper-rollback)
     - [Mount options](#mount-options)
     - [Show current block device list](#show-current-block-device-list-1)
-      - [UEFI/GPT and GRUB and with encryption](#uefigpt-and-grub-and-with-encryption)
-      - [UEFI/GPT and Grub and no encryption](#uefigpt-and-grub-and-no-encryption)
-      - [UEFI/GPT and systemd-boot and no encryption](#uefigpt-and-systemd-boot-and-no-encryption)
-      - [BIOS/GPT and Grub and with encryption](#biosgpt-and-grub-and-with-encryption)
+      - [UEFI/GPT with encryption](#uefigpt-with-encryption)
+      - [UEFI/GPT and no encryption](#uefigpt-and-no-encryption)
+      - [BIOS/GPT with encryption](#biosgpt-with-encryption)
   - [Installation](#installation)
     - [Select the mirrors](#select-the-mirrors)
     - [Install essential packages](#install-essential-packages)
@@ -80,10 +76,9 @@ But I am using snapper and [snapper-rollback (AUR)](https://aur.archlinux.org/pa
   - [Configure the system](#configure-the-system)
     - [Fstab (filesystem table)](#fstab-filesystem-table)
       - [Create fstab](#create-fstab)
-      - [UEFI/GPT with encryption and Grub](#uefigpt-with-encryption-and-grub)
-      - [UEFI/GPT without encryption and with Grub](#uefigpt-without-encryption-and-with-grub)
-      - [UEFI/GPT without encryption and with systemd-boot](#uefigpt-without-encryption-and-with-systemd-boot)
-      - [BIOS/GPT with encryption and Grub](#biosgpt-with-encryption-and-grub)
+      - [UEFI/GPT with encryption](#uefigpt-with-encryption-1)
+      - [UEFI/GPT without encryption](#uefigpt-without-encryption)
+      - [BIOS/GPT with encryption](#biosgpt-with-encryption-1)
     - [=== Chroot start ===](#-chroot-start-)
     - [Chroot (Change root into new system)](#chroot-change-root-into-new-system)
     - [Time](#time)
@@ -98,7 +93,7 @@ But I am using snapper and [snapper-rollback (AUR)](https://aur.archlinux.org/pa
       - [Modules](#modules)
       - [FILES: Include the keyfile for decrypting root partition on boot](#files-include-the-keyfile-for-decrypting-root-partition-on-boot)
       - [Hooks](#hooks)
-    - [Creating a new initramfs](#creating-a-new-initramfs)
+    - [Creating new initramfs](#creating-new-initramfs)
   - [Boot loader](#boot-loader)
     - [Grub](#grub)
       - [Config default grub](#config-default-grub)
@@ -110,9 +105,15 @@ But I am using snapper and [snapper-rollback (AUR)](https://aur.archlinux.org/pa
     - [Systemd-boot](#systemd-boot)
       - [Installing the UEFI boot manager](#installing-the-uefi-boot-manager)
       - [Automatic update via systemd service](#automatic-update-via-systemd-service)
+      - [Copy kernel and initramfs to directory on the efi partition](#copy-kernel-and-initramfs-to-directory-on-the-efi-partition)
+        - [Preparation step](#preparation-step)
+        - [Automated copy of kernel and initramfs using systemd](#automated-copy-of-kernel-and-initramfs-using-systemd)
+        - [Verify the syntax of the Systemd Unit files](#verify-the-syntax-of-the-systemd-unit-files)
+        - [Enable and start efistub-update.path](#enable-and-start-efistub-updatepath)
+        - [Copy of kernel and initramfs using systemd service](#copy-of-kernel-and-initramfs-using-systemd-service)
       - [Loader configuration](#loader-configuration)
       - [Adding loaders](#adding-loaders)
-        - [Default loader](#default-loader)
+        - [Standard loaders](#standard-loaders)
         - [Fallback loader](#fallback-loader)
         - [Additional options](#additional-options)
       - [Check config](#check-config)
@@ -135,7 +136,9 @@ But I am using snapper and [snapper-rollback (AUR)](https://aur.archlinux.org/pa
         - [Permissions](#permissions)
         - [Automatic snapshots and cleanup](#automatic-snapshots-and-cleanup)
       - [Snapper-rollback (AUR)](#snapper-rollback-aur)
+        - [Function for rollback](#function-for-rollback)
         - [Rollback example](#rollback-example)
+        - [Manual Snapshot after Rollback](#manual-snapshot-after-rollback)
     - [INSERTION: Config zram as swap](#insertion-config-zram-as-swap)
       - [Disable zswap](#disable-zswap)
       - [Using zram-generator](#using-zram-generator)
@@ -274,6 +277,11 @@ ssh from your computer into the machine to be installed:
     ```
     - which means you are in BIOS Boot mode
 
+> :warning: **`systemd-boot`** bootloader supports only UEFI boot mode.
+>
+> For BIOS boot mode you have to use Grub bootloader (or another bootlaoder supporting BIOS boot mode).
+> Only Grub and systemd-boot are addressed in this guide.
+
 ## Internet connection
 
 - <https://wiki.archlinux.org/title/Installation_guide#Connect_to_the_internet>
@@ -335,19 +343,9 @@ I/O size (minimum/optimal): 512 bytes / 512 bytes
 
 ### UEFI/GPT
 
-#### Info regarding systemd-boot with XBOOTLDR and snapshots/snapper-rollback
-
-> :warning: :warning: :warning: **systemd-boot with XBOOTLDR and snapshots/snapper-rollback**
-> The kernels are on the separate (XBOOTLDR) partition `/boot` are currently not snapshotted.
-> If there were one or more kernel update(s) and you rollback to a state before the kernel update(s), you may face incompatabilities:
-> You have old packages and the new kernel (the fallback kernel image may work if there was just one kernel update).
->
-> One solution could be, when there is a kernel update, to copy the kernel images to the snapshotted root subvolume `/@` first (e.g. via hook).
-> When you roll back, the correspondig kernel image from root subvolume is copied to the `/boot` (XBOOTLDR) partition first (overwriting the existing ones), e.g. also via a hook.
-> So the kernel image state would match the state of your packages.
->
-> **TODO**
-> e.g. like: <https://wiki.archlinux.org/title/EFI_system_partition#Using_systemd>
+> :memo: **Size of the efi partition**
+> If you plan to install multiple kernels (e.g. linux, linux-lts, linux-zen, ...), ... increase the size of the efi partition accordingly.
+> Systemd-boot: Also take the size requirements into account if you want [Grml on ESP](https://wiki.archlinux.org/title/Systemd-boot#Grml_on_ESP) and/or [Archiso on ESP](https://wiki.archlinux.org/title/Systemd-boot#Archiso_on_ESP).
 
 #### Create Partitions
 
@@ -359,37 +357,22 @@ I/O size (minimum/optimal): 512 bytes / 512 bytes
 ```text
 g           # gpt partition table
 
-n
-,, +1G      # efi partition, size 1 GB
+n           # create a new partition
+,, +1G      # efi partition, size 1 GB (increase the size according to your needs)
 t           # change type
 1           # 'EFI System'
-```
 
-**Only for systemd-boot when using XBOOTLDR:**
-
-- <https://wiki.archlinux.org/title/Systemd-boot#Installation_using_XBOOTLDR>
-
-```text
-n
-,, +1.5G    # or: +1500M # extended boot partition, size 1,5 GB 
-t           # change type
-,
-142         # 'Linux extended boot'
-```
-
-**Grub and systemd-boot:**
-```text
 n
 ,,,         # system partition (takes entire rest of the disk)
 t           # change type
-,
+,           # accept default (partition number 2)
 23          # 'Linux root (x86-64)'
 
 p           # print current partition table
-w           # write to disk
+w           # write to disk and exit
 ```
 
-#### Current partition table UEFI/GPT and Grub bootloader
+#### Current partition table UEFI/GPT
 
 ```text
 Disk /dev/vda: 25 GiB, 26843545600 bytes, 52428800 sectors
@@ -401,28 +384,14 @@ Device       Start      End  Sectors Size Type
 /dev/vda2  2099200 52426751 50327552  24G Linux root (x86-64)
 ```
 
-#### Current partition table UEFI/GPT and systemd-boot
-
-```text
-Disk /dev/vda: 35 GiB, 37580963840 bytes, 73400320 sectors
-Units: sectors of 1 * 512 = 512 bytes
-Sector size (logical/physical): 512 bytes / 512 bytes
-I/O size (minimum/optimal): 512 bytes / 512 bytes
-Disklabel type: gpt
-Disk identifier: 7AEB4613-6036-4E00-9FA0-6CD6EA89F2F8
-
-Device       Start      End  Sectors  Size Type
-/dev/vda1     2048  2099199  2097152    1G EFI System
-/dev/vda2  2099200  5171199  3072000  1.5G Linux extended boot
-/dev/vda3  5171200 73398271 68227072 32.5G Linux root (x86-64)
-```
-
 ### BIOS/GPT
 
 If you are installing on old hardware with a BIOS not supporting GPT there is a [fix](https://wiki.archlinux.org/title/Partitioning#Tricking_old_BIOS_into_booting_from_GPT).
 Or use [MBR](https://wiki.archlinux.org/title/Partitioning#BIOS/MBR_layout_example) instead of [GPT](https://wiki.archlinux.org/title/Partitioning#BIOS/GPT_layout_example).
 
 #### Create partitions
+
+**Only Grub:**
 
 `fdisk /dev/vda`
 
@@ -431,19 +400,19 @@ Or use [MBR](https://wiki.archlinux.org/title/Partitioning#BIOS/MBR_layout_examp
 ```text
 g           # gpt partition table
 
-n
-,, +1M      # BIOS boot partition
+n           # create a new partition
+,, +1M      # size: 1 MB
 t           # change type
 4           # 'BIOS boot'
 
 n
 ,, -1M      # system partition # takes entire rest of the disk, excpet 1 MB)
 t           # change type
-,
+,           # accept default (partition number 2)
 23          # 'Linux root (x86-64)'
 
 p           # print current partition table
-w           # write to disk
+w           # write to disk and exit
 ```
 
 #### Current partition table BIOS/GPT
@@ -506,7 +475,7 @@ Device     Start      End  Sectors Size Type
 > 
 > I used to set the device mapper name to `cryptroot`.
 > Systemd-boot sets device mapper name to `root` by default (and seems to like the partition label to be named corresponding, if set).
-> To harmonize the naming I changed the device mapper name when opening the encrypted root for `Grub` und `systemd-boot` to `root` and the root partition label (see: Format partitions).
+> To harmonize the naming I changed the device mapper name for `Grub` und `systemd-boot` to `root` and the root partition label (see: Format partitions).
 >
 > Remark:
 > When using device-mapper name and root partition label `cryptroot`, systemd-boot still works, but it looks a bit ugly:
@@ -553,10 +522,10 @@ NAME                      MAJ:MIN RM   SIZE RO TYPE  MOUNTPOINTS
   └─/dev/mapper/root 253:0    0    24G  0 crypt
 ```
 
-#### Note regarding password input at boot
+#### Note regarding password input at boot when using encryption
 
 **Grub:** When not using a keyfile to decrypt the encrypted root partition: when starting your machine you will be asked twice for a password for decrypting: 1x bootloader, 1x encrypted root partition.
-**Systemd-boot:** We do not use a keyfile in this guide (/efi (and /boot for XBOOTLDR) partition are not encrypted). You will currently only be asked once for the password to decrypt the encrypted root partition.
+**Systemd-boot:** We do not use a keyfile in this guide (/efi partition is not encrypted). You will currently only be asked once for the password to decrypt the root partition.
 
 > :memo: **keyfile**
 > You can generate and add a keyfile to [unlock encrypted root at boot](https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#With_a_keyfile_embedded_in_the_initramfs), which has to be accessible only by root user.
@@ -579,12 +548,10 @@ NAME                      MAJ:MIN RM   SIZE RO TYPE  MOUNTPOINTS
 
 - EFI partition (only UEFI boot mode, skip for BIOS boot mode)
   - `mkfs.fat -F32 -n EFI /dev/vda1` # EFI partition # adjust to your device path
-- Extended boot partition (only for systemd-boot using XBOOTLDR):
-  - `mkfs.fat -F32 -n XBOOTLDR /dev/vda2` # Extended boot partition # adjust to your device path
 - Root partition
   - encrypted: `mkfs.btrfs -L ROOT /dev/mapper/root`
     - the device `/dev/mapper/root` can then be mounted like any other partition
-  - not encrypted: `mkfs.btrfs -L ROOT /dev/vda3` # main partition # adjust to your device path, e.g. /dev/vda2 (for Grub bootloader in our example)
+  - not encrypted: `mkfs.btrfs -L ROOT /dev/vda2` # main partition # adjust to your device path, e.g. /dev/vda2 (for Grub bootloader in our example)
 
 ## Btrfs subvolumes
 
@@ -659,10 +626,9 @@ Subvolume-ID 5 (top level 5) = btrfsroot ("/")
 ### Create folders for the subvolumes and partitions (mountpoints)
 
 - in a single command:
-  - `mkdir -p /mnt/{efi,boot,home,var/log,swap,.snapshots,.btrfsroot}`
+  - `mkdir -p /mnt/{efi,home,var/log,swap,.snapshots,.btrfsroot}`
 - or in individual commands:
-  - `mkdir -p /mnt/efi` # only for UEFI
-  - `mkdir -p /mnt/boot` # only for systemd-boot using XBOOTLDR
+  - `mkdir -p /mnt/efi` # only for UEFI boot mode
   - `mkdir -p /mnt/home`
   - `mkdir -p /mnt/var/log`
   - `mkdir -p /mnt/swap`
@@ -679,24 +645,10 @@ Only UEFI, skip if BIOS boot mode
 
 - `mount /dev/vda1 -o fmask=0137,dmask=0027 /mnt/efi` # adjust to your device path
   - mount options (`-o`): -> `drwxr-x---`
-- ~~`mount /dev/vda1 /mnt/efi` # adjust to your device path~~
-
-### Mount the extended boot partition
-
-Only systemd-boot using XBOOTLDR, skip if BIOS boot mode or Grub bootloader
-
-- `mount /dev/vda2 -o fmask=0137,dmask=0027 /mnt/boot` # adjust to your device path # drwxr-x---
-  - mount options (`-o`): -> `drwxr-x---`
-- ~~`mount /dev/vda2 /mnt/boot` # adjust to your device path~~
 
 ### Mount the subvolumes
 
 Adjust to your device path.
-
-> :warning: **Systemd-boot with extended boot partition (XBOOTLDR):**
-> Since we have one more partition in our example, replace `/dev/vda2` with `/dev/vda3`
->
-> Example mounting `home` subvolume (no encryption): `mount `**/dev/vda3**` -o subvol=/@home,compress=zstd,noatime /mnt/home`
 
 > :warning: **If root partition is encrypted:**
 > Replace `/dev/vda2` (root partition) with `/dev/mapper/root` (`root` = device mapper name used for enryption / opening encrypted root partition)
@@ -704,31 +656,25 @@ Adjust to your device path.
 
 - home
   - encryption: `mount /dev/mapper/root -o subvol=/@home,compress=zstd,noatime /mnt/home`
-  - no encryption (Grub): `mount /dev/vda2 -o subvol=/@home,compress=zstd,noatime /mnt/home`
-  - no encryption (systemd-boot and XBOOTLDR): `mount /dev/vda3 -o subvol=/@home,compress=zstd,noatime /mnt/home`
+  - no encryption: `mount /dev/vda2 -o subvol=/@home,compress=zstd,noatime /mnt/home`
 - log files
   - encryption: `mount /dev/mapper/root -o subvol=/@varlog,compress=zstd,noatime /mnt/var/log`
-  - no encryption (Grub): `mount /dev/vda2 -o subvol=/@varlog,compress=zstd,noatime /mnt/var/log`
-  - no encryption (systemd-boot and XBOOTLDR): `mount /dev/vda3 -o subvol=/@varlog,compress=zstd,noatime /mnt/var/log`
+  - no encryption: `mount /dev/vda2 -o subvol=/@varlog,compress=zstd,noatime /mnt/var/log`
 - swap file:
   - encryption: `mount /dev/mapper/root -o subvol=/@swap,compress=zstd,noatime /mnt/swap`
-  - no encryption (Grub): `mount /dev/vda2 -o subvol=/@swap,compress=zstd,noatime /mnt/swap`
-  - no encryption (systemd-boot and XBOOTLDR): `mount /dev/vda3 -o subvol=/@swap,compress=zstd,noatime /mnt/swap`
+  - no encryption: `mount /dev/vda2 -o subvol=/@swap,compress=zstd,noatime /mnt/swap`
   - create and activate swap:
     - `btrfs filesystem mkswapfile --size 4g --uuid clear /mnt/swap/swapfile` # Create a 4 GB swap file (currently without Hibernation support)
     - `swapon /mnt/swap/swapfile` # activate the swap file
 - snapshots
   - encryption: `mount /dev/mapper/root -o subvol=/@snapshots,compress=zstd,noatime /mnt/.snapshots`
-  - no encryption (Grub): `mount /dev/vda2 -o subvol=/@snapshots,compress=zstd,noatime /mnt/.snapshots`
-  - no encryption (systemd-boot and XBOOTLDR): `mount /dev/vda3 -o subvol=/@snapshots,compress=zstd,noatime /mnt/.snapshots`
+  - no encryption: `mount /dev/vda2 -o subvol=/@snapshots,compress=zstd,noatime /mnt/.snapshots`
 - ... and all other subvolumes you may have created
 
 ### Mount btrfsroot for 'snapper-rollback'
 
 - encryption: `mount /dev/mapper/root -o subvol=/,compress=zstd,noatime /mnt/.btrfsroot`
-- ~~encryption: `mount /dev/mapper/root -o subvolid=5,compress=zstd,noatime /mnt/.btrfsroot`~~
-- no encryption (Grub): `mount /dev/vda2 -o subvol=/,compress=zstd,noatime /mnt/.btrfsroot`
-- no encryption (systemd-boot and XBOOTLDR): `mount /dev/vda3 -o subvol=/,compress=zstd,noatime /mnt/.btrfsroot`
+- no encryption: `mount /dev/vda2 -o subvol=/,compress=zstd,noatime /mnt/.btrfsroot`
 
 ### Mount options
 
@@ -737,7 +683,7 @@ Adjust to your device path.
 
 ### Show current block device list
 
-#### UEFI/GPT and GRUB and with encryption
+#### UEFI/GPT with encryption
 
 `lsblk -p`
 
@@ -755,7 +701,7 @@ Adjust to your device path.
                                                      /mnt
 ```
 
-#### UEFI/GPT and Grub and no encryption
+#### UEFI/GPT and no encryption
 
 `lsblk`
 
@@ -773,26 +719,7 @@ vda    254:0    0    25G  0 disk
                                  /mnt
 ```
 
-#### UEFI/GPT and systemd-boot and no encryption
-
-`lsblk`
-
-```text
-NAME   MAJ:MIN RM  SIZE RO TYPE MOUNTPOINTS
-loop0    7:0    0 790.3M  1 loop /run/archiso/airootfs
-sr0     11:0    1   1.1G  0 rom  /run/archiso/bootmnt 
-vda    254:0    0   50G  0 disk 
-├─vda1 254:1    0    1G  0 part /efi
-├─vda2 254:2    0  1.5G  0 part /boot
-└─vda3 254:3    0 47.5G  0 part /var/log
-                                /home
-                                /swap
-                                /.btrfsroot
-                                /.snapshots
-                                /
-```
-
-#### BIOS/GPT and Grub and with encryption
+#### BIOS/GPT with encryption
 
 `lsblk -p`
 
@@ -841,12 +768,15 @@ You could activate parallel downloads by pacman (optional, temporary since we ar
 The minimum would be: `pacstrap -K /mnt base linux linux-firmware` # using 'linux' kernel
 And install the rest while chrooted into the new system (e.g. see: Post-installation -> System administration; after "Users and groups").
 
+> :memo: You could consider installing a second kernel (e.g. lts version), which may bemome handy if you have problems booting with your standard kernel.
+> `linux-lts` and as an "extended package" `linux-lts-headers`
+
 #### Extended package install
 
 But we could also install some more packages here:
 
 - e.g. Grub + UEFI: `pacstrap -K /mnt base linux linux-firmware linux-headers   grub efibootmgr   btrfs-progs mtools   base-devel sudo man-db man-pages texinfo   networkmanager   reflector   openssh vim rsync terminus-font`
-- e.g. Systemd-boot: `pacstrap -K /mnt base linux linux-firmware linux-headers   efibootmgr   btrfs-progs mtools   base-devel sudo man-db man-pages texinfo   networkmanager   reflector   openssh vim rsync terminus-font`
+- e.g. Systemd-boot: same as above, but without the `grub` package
 &nbsp;
 
 - for Ext2/3/4 filesystem utilities add: `e2fsprogs`
@@ -864,8 +794,8 @@ But we could also install some more packages here:
 #### Summarized package list
 
 All packages above together:
-- e.g. Grub + UEFI: `pacstrap -K /mnt   base linux linux-firmware linux-headers   grub efibootmgr   btrfs-progs mtools e2fsprogs   base-devel sudo man-db man-pages texinfo   networkmanager   reflector   openssh vim rsync terminus-font   amd-ucode intel-ucode   pipewire pipewire-alsa pipewire-pulse pipewire-jack wireplumber sof-firmware   bluez bluez-utils   zsh`
-- e.g. Systemd-boot: `pacstrap -K /mnt   base linux linux-firmware linux-headers   efibootmgr   btrfs-progs mtools e2fsprogs   base-devel sudo man-db man-pages texinfo   networkmanager   reflector   openssh vim rsync terminus-font   amd-ucode intel-ucode   pipewire pipewire-alsa pipewire-pulse pipewire-jack wireplumber sof-firmware   bluez bluez-utils   zsh`
+- e.g. Grub + UEFI: `pacstrap -K /mnt   base linux linux-headers linux-lts linux-lts-headers linux-firmware   grub efibootmgr   btrfs-progs mtools e2fsprogs   base-devel sudo man-db man-pages texinfo   networkmanager   reflector   openssh vim rsync terminus-font   amd-ucode intel-ucode   pipewire pipewire-alsa pipewire-pulse pipewire-jack wireplumber sof-firmware   bluez bluez-utils   zsh`
+- e.g. Systemd-boot (UEFI only): same as above, but without the `grub` package
 
 ## Configure the system
 
@@ -897,7 +827,8 @@ All packages above together:
 > :memo: The UUIDs shown at 'with enryption' or 'without encrypion' within following points would match.
 > They are only different because it was a seperate new installation each time with new random UUIDs generated.
 ge
-#### UEFI/GPT with encryption and Grub
+
+#### UEFI/GPT with encryption
 
 ```text
 # <file system> <dir> <type> <options> <dump> <pass>
@@ -926,7 +857,7 @@ UUID=7986ecc9-7656-4ccc-814f-e58f20e241a5 /.btrfsroot btrfs      rw,noatime,comp
 /swap/swapfile       none       swap       defaults   0 0
 ```
 
-#### UEFI/GPT without encryption and with Grub
+#### UEFI/GPT without encryption
 
 ```text
 # <file system> <dir> <type> <options> <dump> <pass>
@@ -955,39 +886,7 @@ UUID=a552a029-4972-4b3a-b2cd-21ddb5e2e870 /.btrfsroot btrfs      rw,noatime,comp
 /swap/swapfile       none       swap       defaults   0 0
 ```
 
-#### UEFI/GPT without encryption and with systemd-boot
-
-```text
-# <file system> <dir> <type> <options> <dump> <pass>
-# /dev/vda3 LABEL=ROOT
-UUID=6eee7850-fde0-4cff-912a-d45d3c673313	/         	btrfs     	rw,noatime,compress=zstd:3,discard=async,space_cache=v2,subvol=/@	0 0
-
-# /dev/vda1 LABEL=EFI
-UUID=A5B9-FE11      	/efi      	vfat      	rw,relatime,fmask=0137,dmask=0027,codepage=437,iocharset=ascii,shortname=mixed,utf8,errors=remount-ro	0 2
-
-# /dev/vda2 LABEL=XBOOTLDR
-UUID=A673-7346      	/boot     	vfat      	rw,relatime,fmask=0137,dmask=0027,codepage=437,iocharset=ascii,shortname=mixed,utf8,errors=remount-ro	0 2
-
-# /dev/vda3 LABEL=ROOT
-UUID=6eee7850-fde0-4cff-912a-d45d3c673313	/home     	btrfs     	rw,noatime,compress=zstd:3,discard=async,space_cache=v2,subvol=/@home	0 0
-
-# /dev/vda3 LABEL=ROOT
-UUID=6eee7850-fde0-4cff-912a-d45d3c673313	/var/log  	btrfs     	rw,noatime,compress=zstd:3,discard=async,space_cache=v2,subvol=/@varlog	0 0
-
-# /dev/vda3 LABEL=ROOT
-UUID=6eee7850-fde0-4cff-912a-d45d3c673313	/swap     	btrfs     	rw,noatime,compress=zstd:3,discard=async,space_cache=v2,subvol=/@swap	0 0
-
-# /dev/vda3 LABEL=ROOT
-UUID=6eee7850-fde0-4cff-912a-d45d3c673313	/.snapshots	btrfs     	rw,noatime,compress=zstd:3,discard=async,space_cache=v2,subvol=/@snapshots	0 0
-
-# /dev/vda3 LABEL=ROOT
-UUID=6eee7850-fde0-4cff-912a-d45d3c673313	/.btrfsroot	btrfs     	rw,noatime,compress=zstd:3,discard=async,space_cache=v2,subvol=/	0 0
-
-# Example with swapfile:
-/swap/swapfile       none       swap       defaults   0 0
-```
-
-#### BIOS/GPT with encryption and Grub
+#### BIOS/GPT with encryption
 
 ```text
 # <file system> <dir> <type> <options> <dump> <pass>
@@ -1034,7 +933,7 @@ UUID=53791c43-d7ad-48fd-bbc9-8f15451d94f0 /.btrfsroot btrfs      rw,noatime,comp
 
 - `tzselect` # set time zone interactively
 - or manually, e.g. for Germany:
-- `ln -sf /usr/share/zoneinfo/Europe/Berlin /etc/localtime` # set time zone # adjust to your location
+- `ln -sf /usr/share/zoneinfo/Europe/Berlin /etc/localtime` # set time zone (symbolic link) # adjust to your location
 ~~or:~~
 ~~`timedatectl set-timezone Europe/Berlin`~~ # during chroot timedatectl will not work
 
@@ -1062,16 +961,16 @@ Start and enable systemd-timesyncd.service (when running in chroot):
 - <https://wiki.archlinux.org/title/Installation_guide#Localization>
 &nbsp;
 
-- `vim /etc/locale.gen` # uncomment `en_US.UTF-8 UTF-8` and other needed UTF-8 locales
+- `vim /etc/locale.gen` # uncomment `en_US.UTF-8 UTF-8` and other UTF-8 locales you need
 - `locale-gen` # Generate the locales
 &nbsp;
 
 - `vim /etc/locale.conf` # set the LANG variable accordingly
-  - `LANG=en_US.UTF-8` # insert this line in the empty new file
+  - `LANG=en_US.UTF-8` # insert this line (for US english) in the empty new file
 &nbsp;
 
 - `vim /etc/vconsole.conf` # set the console keyboard layout (persistent)
-  - `KEYMAP=de-latin1` # insert this line in the empty new file for german keyboard layout
+  - `KEYMAP=de-latin1` # insert this line in the empty new file (german keyboard layout)
   - ~~or~~
   - ~~`localectl set-keymap de-latin1` # corresoponding to timedatectl~~ # not available in chroot
 
@@ -1111,10 +1010,10 @@ ff02::2    ip6-allrouters
 
 We installed "NetworkManager" (see: "Install essential packages")
 
-- Enabling its systemd unit so that it starts at boot:
+- Enable its systemd unit to start autamatically:
   - `systemctl enable NetworkManager.service`
 - or the corresponding service, if you installed another one
-  - e.g. dhcpcd: `systemctl enable dhcpcd.service`
+  - e.g. for "dhcpcd" instead of "NetworkManager": `systemctl enable dhcpcd.service`
 
 ## INSERTION: keyfile for decrypting root partition on boot
 
@@ -1137,12 +1036,12 @@ Skip this step, if you no not use enryption or do not want to use keyfile.
   - e.g.: `cryptsetup luksAddKey /dev/vda2 /etc/cryptsetup-keys.d/crypto_keyfile.key` # `/dev/vda2` is our root partition
     - you will be asked to enter the passphrase you set when encryptig the root partition
 
-The next steps to do are:
+The next steps to do are
 
-- Include the key in mkinitcpio's FILES array
-  - see below (in `mkinitcpio.conf`)
-- Specify the keyfile with the `cryptkey=` kernel parameter
-  - see below (in `/etc/default/grub`)
+- Include the key in mkinitcpio's FILES array (in `mkinitcpio.conf`)
+- Specify the keyfile with the `cryptkey=` kernel parameter (in `/etc/default/grub`)
+
+and are described in the following sections.
 
 ## Initramfs (Create initial ramdisk environment)
 
@@ -1168,7 +1067,6 @@ The next steps to do are:
 
 **Skip this step if you no not use enryption or do not want to use a keyfile (e.g. when using systemd-boot in this guide).**
 
-
 - Include the key in mkinitcpio's FILES array:
   - `vim /etc/mkinitcpio.conf`
   - set: `FILES=(/etc/cryptsetup-keys.d/crypto_keyfile.key)`
@@ -1192,9 +1090,10 @@ For LVM, **system** encryption or RAID, modify mkinitcpio.conf(5) (`/etc/mkinitc
     - `HOOKS`: add **sd-encrypt** before `filesystems`
       - results in e.g.: `HOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block` **sd-encrypt** `filesystems fsck)`
 
-### Creating a new initramfs
+### Creating new initramfs
 
-- `mkinitcpio -P`
+- `mkinitcpio -P` 
+  - `-P`: process all presets contained in `/etc/mkinitcpio.conf`
 
 ## Boot loader
 
@@ -1212,9 +1111,9 @@ For LVM, **system** encryption or RAID, modify mkinitcpio.conf(5) (`/etc/mkinitc
 - <https://wiki.archlinux.org/title/GRUB#GRUB_rescue_and_encrypted_/boot>
 
 > :memo: **Note:** Seperate `/efi` directory from the `/boot` directory
-> Boot related files are saved in folder `/boot`, which is a subfolder of root and therefore backed up in a snapshot
-> If we roll back then the versions of the files in `/boot` will be consistent with the remaining filsystem
-> Which would not necessarily be the case if boot is on the `/efi` partition
+> Boot related files are saved in folder `/boot`, which is a subfolder of root and therefore are backed up in snapshots.
+> If we roll back then the versions of the files in `/boot` will be consistent with the remaining filsystem.
+> Which would not necessarily be the case if `/boot` is on the `/efi` partition or a seperate `/boot` partition, which are not snapshotted.
 
 #### Config default grub
 
@@ -1286,71 +1185,177 @@ Create config file:
 
 #### Installing the UEFI boot manager
 
-- <https://wiki.archlinux.org/title/Systemd-boot#Installation_using_XBOOTLDR>
+- <https://wiki.archlinux.org/title/Systemd-boot#Installing_the_UEFI_boot_manager>
+- <https://man.archlinux.org/man/bootctl.1#OPTIONS>
 
-If you set up with an extended boot partition (XBOOTLDR): `bootctl --esp-path=/efi --boot-path=/boot install`
+`bootctl --entry-token=machine-id --make-entry-directory=yes install`
 
 #### Automatic update via systemd service
 
 - <https://wiki.archlinux.org/title/Systemd-boot#systemd_service>
 
+To autamatically update systemd-boot enable its update service:
 `systemctl enable systemd-boot-update.service`
+
+#### Copy kernel and initramfs to directory on the efi partition
+
+##### Preparation step
+
+Kernel and initramfs files have to be copied to the (unencrypted) efi partition's subdirectory named after the machine-ID. This directory has been autamatically created when installing the boot manager.
+
+We need the machine-ID first: `cat /etc/machine-id`
+
+- prints e.g.: af36e2965f254d26a73f1eb3e6049a8c
+
+Now we know the destination path on the efi partition: `/efi/af36e2965f254d26a73f1eb3e6049a8c/`
+&nbsp;
+
+> :memo: **Access to kernel and initramfs**
+> Systemd-boot needs access to the kernel and initramfs (unencrypted), which are generated by `mkinitcpio` (according to its current config) into the `/boot` folder on the encrypted root partition / root subvolume.
+> 
+> This has the advantage that `/boot` is included in the snapshots of the root subvolume. So we have the kernel and initramfs available which match the status of the snapshot if we need it (e.g. if we make a rollback).
+> 
+> The drawback is that we need to copy kernel and initramfs to a directory on the efi partition and config the systemd-boot loader entries to point there.
+
+> :memo: **Automated copy of kernel and initramfs**
+> Copy of kernel and initramfs after every kernel update to the directory on the efi partition will be automated via systemd (see further below).
+
+> :memo: **Kernel and initramfs when rolling back to a desired snapshot**
+> In this guide we will use `snapper-rollback` (AUR) for rolling back to a desired snapshot.
+> 
+> When installing and configuring `snapper-rollback` at a later step (Post-install step after reboot), we will not use snapper-rollback directly, but have a `rollback` function which also copies the kernel and initramfs files matching the state of the snapshot to rollback to.
+> 
+> This prevents possible problems between a newer kernel and the packages at the rolled-back state, if there were kernel updates after the snapshot we roollback to.
+
+&nbsp;
+
+##### Automated copy of kernel and initramfs using systemd
+
+- <https://wiki.archlinux.org/title/EFI_system_partition#Using_systemd>
+
+Creating the systemd path and service files:
+
+- `vim /etc/systemd/system/efistub-update.path`
+
+  ```text
+  [Unit]
+  Description=Copy EFISTUB Kernel to EFI system partition
+
+  [Path]
+  PathChanged=/boot/initramfs-linux-fallback.img
+  Unit=efistub-update.service
+
+  #if you have multiple kernels installed, you can add them here too, e.g. for lts kernel:
+  [Path]
+  PathChanged=/boot/initramfs-linux-lts-fallback.img
+  Unit=efistub-update.service
+  #you have to add 'ExecStart's in the efistub-update.service file to copy this kernel and initramfs files
+  #or create a separate service file for each kernel
+
+  [Install]
+  WantedBy=multi-user.target
+  WantedBy=system-update.target
+  ```
+
+- `vim /etc/systemd/system/efistub-update.service`
+
+  ```text
+  [Unit]
+  Description=Copy EFISTUB Kernel to EFI system partition
+
+  [Service]
+  Type=oneshot
+  #linux:
+  ExecStart=/usr/bin/cp -af /boot/vmlinuz-linux /efi/af36e2965f254d26a73f1eb3e6049a8c/
+  ExecStart=/usr/bin/cp -af /boot/initramfs-linux.img /efi/af36e2965f254d26a73f1eb3e6049a8c/
+  ExecStart=/usr/bin/cp -af /boot/initramfs-linux-fallback.img /efi/af36e2965f254d26a73f1eb3e6049a8c/
+  #linux-lts:
+  ExecStart=/usr/bin/cp -af /boot/vmlinuz-linux-lts /efi/af36e2965f254d26a73f1eb3e6049a8c/
+  ExecStart=/usr/bin/cp -af /boot/initramfs-linux-lts.img /efi/af36e2965f254d26a73f1eb3e6049a8c/
+  ExecStart=/usr/bin/cp -af /boot/initramfs-linux-lts-fallback.img /efi/af36e2965f254d26a73f1eb3e6049a8c/
+  ```
+
+> :memo: **Secure Boot**
+> For Secure Boot with your own keys, you can set up the service to also sign the image using `sbsigntools`.
+
+##### Verify the syntax of the Systemd Unit files
+
+`systemd-analyze verify /etc/systemd/system/efistub-update.*`
+
+##### Enable and start efistub-update.path
+
+`systemctl enable efistub-update.path`
+
+##### Copy of kernel and initramfs using systemd service
+
+`systemctl start efistub-update.service`
 
 #### Loader configuration
 
 - <https://wiki.archlinux.org/title/Systemd-boot#Loader_configuration>
+- <https://man.archlinux.org/man/loader.conf.5#OPTIONS>
 &nbsp;
+
+machine-ID in our example is: af36e2965f254d26a73f1eb3e6049a8c (see further above)
 
 - `vim /efi/loader/loader.conf`
 
-```text
-default      arch.conf
-timeout      4
-console-mode max
-editor       no
-```
+  ```text
+  timeout      4
+  default      af36e2965f254d26a73f1eb3e6049a8c-*
+  console-mode max
+  editor       no
+  ```
 
 > :memo: **Delimiter**
 > Use **spaces** (NOT tabs) as delimiter.
+
+- if you have set `timeout 0`, the boot menu can be accessed by pressing Space.
+- `default`: a glob pattern to select the default entry...
+  - you may also set `default` to one prefered loader entry, e.g.:
+  - `default af36e2965f254d26a73f1eb3e6049a8c-arch.conf`
 
 #### Adding loaders
 
 - <https://wiki.archlinux.org/title/Systemd-boot#Adding_loaders>
 - <https://uapi-group.org/specifications/specs/boot_loader_specification/>
 
-machine-id: `cat /etc/machine-id` # prints e.g.: `46ccd99c37fa4e3cb5bfe076152df18f`
+##### Standard loaders
 
-##### Default loader
+**for 'linux' kernel e.g.:**
 
-`vim /boot/loader/entries/arch.conf`
-
+- `vim /efi/loader/entries/af36e2965f254d26a73f1eb3e6049a8c-arch.conf`
 - no encryption:
-```text
-title      Arch Linux
-linux      /vmlinuz-linux
-initrd     /initramfs-linux.img
-options    rootflags=subvol=/@ root=UUID=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA rw
-```
+
+  ```text
+  title      Arch Linux
+  linux      /vmlinuz-linux
+  initrd     /initramfs-linux.img
+  options    rootflags=subvol=/@ root=UUID=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA rw
+  ```
 
 - with encryption:
   - <https://wiki.archlinux.org/title/Dm-crypt/System_configuration#Using_systemd-cryptsetup-generator>
-```text
-title      Arch Linux
-linux      /vmlinuz-linux
-initrd     /initramfs-linux.img
-options    rootflags=subvol=/@ rd.luks.name=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA=root root=/dev/mapper/root rw
-```
+
+  ```text
+  title      Arch Linux
+  linux      /vmlinuz-linux
+  initrd     /initramfs-linux.img
+  options    rootflags=subvol=/@ rd.luks.name=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA=root root=/dev/mapper/root rw
+  ```
 
 - and optional (encryption and no encryption) add to conf file:
-```text
-machine-id 46ccd99c37fa4e3cb5bfe076152df18f
-```
 
-- and optional (encryption and no encryption) add to `options` in conf file:
+  ```text
+  machine-id 46ccd99c37fa4e3cb5bfe076152df18f
+  ```
+
+- **systemd-boot only** (encryption and no encryption): optional add to `options` in conf file:
   - `systemd.machine-id=46ccd99c37fa4e3cb5bfe076152df18f`
-  - e.g. with enryption: 
+  - e.g. with enryption:
+
     ```text
-    `options rootflags=subvol=/@ rd.luks.name=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA=root root=/dev/mapper/root rw systemd.machine-id=46ccd99c37fa4e3cb5bfe076152df18f`
+    `options rootflags=subvol=/@ rd.luks.name=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA=root root=/dev/mapper/root rw`
     ```
 
 > :memo: **Note:**
@@ -1361,45 +1366,98 @@ machine-id 46ccd99c37fa4e3cb5bfe076152df18f
 > - `rd.luks.uuid`: Specify the UUID of the device to be decrypted on boot:
 >   - `rootflags=subvol=/@ rd.luks.uuid=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA root=/dev/mapper/root rw`
 
-##### Fallback loader
+&nbsp;
 
-`vim /boot/loader/entries/arch-fallback.conf`
+**for 'linux-lts' kernel e.g.:**
 
+- `vim /efi/loader/entries/af36e2965f254d26a73f1eb3e6049a8c-arch-lts.conf`
 - no encryption:
-```text
-title      Arch Linux (fallback initramfs)
-linux      /vmlinuz-linux
-initrd     /initramfs-linux-fallback.img
-options    rootflags=subvol=/@ root=UUID=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA rw
-```
+
+  ```text
+  title      Arch Linux LTS
+  machine-id 46ccd99c37fa4e3cb5bfe076152df18f
+  linux      /vmlinuz-linux-lts
+  initrd     /initramfs-linux-lts.img
+  options    rootflags=subvol=/@ root=UUID=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA rw
+  ```
 
 - with encryption:
-```text
-title      Arch Linux (fallback initramfs)
-linux      /vmlinuz-linux
-initrd     /initramfs-linux-fallback.img
-options    rootflags=subvol=/@ rd.luks.name=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA=root root=/dev/mapper/root rw
-```
 
-- and optional (encryption and no encryption) add to conf file:
-```text
-machine-id 46ccd99c37fa4e3cb5bfe076152df18f
-```
+  ```text
+  title      Arch Linux LTS
+  machine-id 46ccd99c37fa4e3cb5bfe076152df18f
+  linux      /vmlinuz-linux-lts
+  initrd     /initramfs-linux-lts.img
+  options    rootflags=subvol=/@ rd.luks.name=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA=root root=/dev/mapper/root rw
+  ```
+
+##### Fallback loader
+
+**for 'linux' kernel e.g.:**
+
+- `vim /efi/loader/entries/af36e2965f254d26a73f1eb3e6049a8c-arch-fallback.conf`
+- no encryption:
+
+  ```text
+  title      Arch Linux (fallback initramfs)
+  machine-id 46ccd99c37fa4e3cb5bfe076152df18f
+  linux      /vmlinuz-linux
+  initrd     /initramfs-linux-fallback.img
+  options    rootflags=subvol=/@ root=UUID=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA rw
+  ```
+
+- with encryption:
+
+  ```text
+  title      Arch Linux (fallback initramfs)
+  machine-id 46ccd99c37fa4e3cb5bfe076152df18f
+  linux      /vmlinuz-linux
+  initrd     /initramfs-linux-fallback.img
+  options    rootflags=subvol=/@ rd.luks.name=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA=root root=/dev/mapper/root rw
+  ```
+
+**for 'linux-lts' kernel e.g.:**
+
+- `vim /efi/loader/entries/af36e2965f254d26a73f1eb3e6049a8c-arch-fallback.conf`
+- no encryption:
+
+  ```text
+  title      Arch Linux LTS (fallback initramfs)
+  machine-id 46ccd99c37fa4e3cb5bfe076152df18f
+  linux      /vmlinuz-linux-lts
+  initrd     /initramfs-linux-lts-fallback.img
+  options    rootflags=subvol=/@ root=UUID=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA rw
+  ```
+
+- with encryption:
+
+  ```text
+  title      Arch Linux LTS (fallback initramfs)
+  machine-id 46ccd99c37fa4e3cb5bfe076152df18f
+  linux      /vmlinuz-linux-lts
+  initrd     /initramfs-linux-lts-fallback.img
+  options    rootflags=subvol=/@ rd.luks.name=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA=root root=/dev/mapper/root rw
+  ```
 
 ##### Additional options
-in `/boot/loader/entries/arch.conf` and `/boot/loader/entries/arch-fallback.conf` (separated by space):
+
+In the loader entries add to `options` (separated by space):
+
 - `nvme_load=YES` # if you have an (NVME) SSD
 - `nowatchdog`
   - <https://wiki.archlinux.org/title/Improving_performance#Watchdogs>
-  - ok to set for non-critical Home / Desktop use case
-- `systemd.machine_id=<MACHINEID>` # e.g.: `systemd.machine_id=46ccd99c37fa4e3cb5bfe076152df18f` # `cat /etc/machine-id`
+  - ok to set for non-critical home / desktop use case
+- **systemd-boot only**, options: `systemd.machine_id=<MACHINEID>`
+  - e.g.: `systemd.machine_id=46ccd99c37fa4e3cb5bfe076152df18f`
+  - options (encryption): `options    rootflags=subvol=/@ rd.luks.name=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA=root root=/dev/mapper/root rw systemd.machine_id=46ccd99c37fa4e3cb5bfe076152df18f`
+  - options (no encryption): `options    rootflags=subvol=/@ root=UUID=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA rw systemd.machine_id=46ccd99c37fa4e3cb5bfe076152df18f`
 
 #### Check config
 
+- `bootctl`
+
 > :memo: **Tip:**
 > After changing the configuration, run `bootctl` (without any arguments) to make sure that systemd-boot will be able to parse it properly.
-
-- `bootctl`
 
 ## Set password for root user
 
@@ -1427,6 +1485,8 @@ in `/boot/loader/entries/arch.conf` and `/boot/loader/entries/arch-fallback.conf
   - also unmounts "CDROM", USB device ... arch installation medium
 
 ### Restart the machine
+
+> :warning: Check: Did you set a password for the root user when in chroot environment ?!
 
 - `systemctl reboot` # or just: `reboot`
 
@@ -1566,24 +1626,11 @@ Browse the snapshots directory (optional):
 
 #### Snapper-rollback (AUR)
 
-Script to rollback snapper snapshots (comfortable via CLI of a booted system)
+Script to rollback snapper snapshots.
 
 - <https://aur.archlinux.org/packages/snapper-rollback>
 - <https://www.youtube.com/watch?v=maIu1d2lAiI>
-
-> :memo: **Note:**
-> If you can't boot the system anymore, you have to rollback manually via live cd
->
-> TODO - out of scope / separate guide
->
-> The following instructions can be used for orientation
->
-> - <https://wiki.archlinux.org/title/Snapper#Restore_using_the_default_layout>
-> - <https://www.dwarmstrong.org/btrfs-snapshots-rollbacks/>
->   - 11. System rollback the 'Arch Way'
->   - deviating start:
->     - boot Arch live iso
->     - mount btrfs root + arch-chroot
+&nbsp;
 
 - `su USERNAME` # switch to the account of the new user, if not already done
 - `cd` # go to user's home directory
@@ -1593,38 +1640,181 @@ Script to rollback snapper snapshots (comfortable via CLI of a booted system)
 - `cd snapper-rollback`
 - `makepkg -sic` # build package, install dependencies, install (or upgrade) package, clean up leftover work files and directories
 - `cd ..`
-- `rm -rf snapper-rollback snapper-rollback.tar.gz` # delete the folder an file that is no longer required
+- `rm -rf snapper-rollback snapper-rollback.tar.gz` # delete the folder an file which is no longer required
 &nbsp;
 
 - `sudo btrfs subvolume list / | grep -e "@\?snapshots"` # list subvolumes with name 'snapshots'
 - `sudo vim /etc/snapper-rollback.conf` # adjust config:
-  - change mountpoint to: `mountpoint = /.btrfsroot` (adding '.' according to the name of our created folder)
+  - change mountpoint: `mountpoint = /.btrfsroot` (adding '.' according to the name of our created folder)
   - no need to adjust the name of the snapshot subvolume, since we used `@snapshots`
-  - when using 'archinstall' skript the name of the snapshot subvolume is `@.snapshots` and you would have to adjust it here (as of 10/2024)
+  - when using 'archinstall' skript the name of the snapshot subvolume is `@.snapshots` (as of 10/2024) and you would have to adjust it here
+
+> :memo: **Note:**
+> If you can't boot the system anymore, you have to rollback manually via live cd.
+>
+> The following instructions can be used for orientation in such case:
+> 
+> - <https://wiki.archlinux.org/title/Snapper#Restore_using_the_default_layout>
+> - <https://www.dwarmstrong.org/btrfs-snapshots-rollbacks/>
+>   - `11.` System rollback the 'Arch Way'
+>   - deviating start:
+>     - boot Arch live iso
+>     - mount btrfs root and arch-chroot
+
+##### Function for rollback
+
+Since we want to rollback and also copy the kernel and initramfs files matching the snapshot to the efi partition, we will use a function (`rollback`).
+
+Insert into your shell config file (e.g.: `vim ~/.bashrc` (for bash) and/or `vim ~/.zshrc` (for zsh), ...):
+
+```bash
+# function to rollback to a specified snapshot ID
+# takes 1 parameter: snapshot ID to rollback to
+# example: 'rollback 8'
+rollback() {
+  local snapshotsSubvolPath="/.snapshots"
+  local machineID=$(cat /etc/machine-id)
+  local efiPartitionPath="/efi"
+  local efiPartition_targetPath="${efiPartitionPath}/${machineID}/" # destination for kernel and initramfs matching the snapshot ID to rollback to
+  
+  if [ "$#" -eq 1 ] && [ "${1}" -ge 1 ]; then # if exactly 1 parameter passed and is an integer >= 1
+    local snapshotID="${1}" # Parameter 1: snapshot ID to rollback to
+    local snapshot_bootFolder="${snapshotsSubvolPath}/${snapshotID}/snapshot/boot/" # source path of kernel and initramfs matching the snapshot ID to rollback to
+  else
+    echo "Parameter error: pass exactly one parameter (snapshot ID) which has to be an integer value >= 1"
+    echo -e "Example: 'rollback 8'\nTo find the snapshot ID execute 'sudo snapper list'"
+    return
+  fi
+ 
+  if [[ $(command -v snapper-rollback) ]]; then
+    echo "Installing 'rsync' if not available..."
+    sudo pacman -S --needed --noconfirm rsync # ensure rsync is installed
+    
+    local mode="test"
+    read -rp "Do you want to just test or execute the rollback? ('e' = execute, other input = test): " mode
+    local rollbackParameter=""
+    local rsyncParameter=""
+    if [ "${mode}" = "e" ]; then
+        sudo snapper-rollback "${snapshotID}"
+        
+        echo -e "\nCopy kernel and initramfs from snapshot ${snapshotID} to '${efiPartition_targetPath}'..."
+        sudo rsync -aPhEv --delete "${snapshot_bootFolder}" "${efiPartition_targetPath}"
+    else
+        rollbackParameter="--dry-run"
+        rsyncParameter="--dry-run"
+
+        echo -e "\nTESTING rollback, this is gonna be just a ${rollbackParameter}..."
+        sudo snapper-rollback "${rollbackParameter}" "${snapshotID}"
+
+        echo -e "\nCopy kernel and initramfs from snapshot ${snapshotID} to '${efiPartition_targetPath}' ${rsyncParameter}..."
+        sudo rsync -aPhEv --delete "${rsyncParameter}" "${snapshot_bootFolder}" "${efiPartition_targetPath}"
+    fi
+  else
+    echo "'snapper-rollback' not available, rollback not possible"
+    return
+  fi
+}
+```
+
+- `source ~/.bashrc`
 
 ##### Rollback example
 
 - `sudo snapper list` # list snapshots
-- `sudo snapper-rollback <snapshot-number> --dry-run` (just to see what would happen):
+&nbsp;
 
- ```text
- 2024-09-30 10:30:10,562 - INFO - mv /.btrfsroot/@ /.btrfsroot/@2024-09-30T10:30
- 2024-09-30 10:30:10,563 - INFO - btrfs subvolume snapshot /.btrfsroot/@.snapshots/<snapshot-number>/snapshot /.btrfsroot/@
- 2024-09-30 10:30:10,563 - INFO - btrfs subvolume set-default /.btrfsroot/@
- 2024-09-30 10:30:10,563 - INFO - [DRY-RUN MODE] Rollback to /.btrfsroot/@.snapshots/<snapshot-number>/snapshot complete. Reboot to finish
- ```
+  ```text
+  # │ Type   │ Pre # │ Date                            │ User │ Cleanup │ Description                                                              │ Userdata
+  ───┼────────┼───────┼─────────────────────────────────┼──────┼─────────┼──────────────────────────────────────────────────────────────────────────┼─────────
+  [...]
+  7 │ pre    │       │ Sat 09 Nov 2024 06:43:04 PM CET │ root │ number  │ pacman -S --needed nano                                                  │
+  8 │ post   │     7 │ Sat 09 Nov 2024 06:43:04 PM CET │ root │ number  │ nano   
+  9 │ pre    │       │ Sat 09 Nov 2024 06:46:26 PM CET │ root │ number  │ pacman -Syu linux-zen linux-zen-headers                                  │
+  10 │ post  │      9 │ Sat 09 Nov 2024 06:46:42 PM CET │ root │ number  │ linux-zen linux-zen-headers 
+  ```
 
-> :memo: **Note:**
+- Test:
+  - `rollback 7`
+&nbsp;
+
+    ```text
+    Installing 'rsync' if not available...
+    [sudo] password for USER: 
+    warning: rsync-3.3.0-2 is up to date -- skipping
+    there is nothing to do
+    Do you want to just test or execute the rollback? ('e' = execute, other input = test): 
+
+    TESTING rollback, this is gonna be just a --dry-run...
+    Are you SURE you want to rollback? Type 'CONFIRM' to continue: CONFIRM
+    2024-11-11 01:22:31,896 - INFO - mv /.btrfsroot/@ /.btrfsroot/@2024-11-11T01:22
+    2024-11-11 01:22:31,896 - INFO - btrfs subvolume snapshot /.btrfsroot/@snapshots/7/snapshot /.btrfsroot/@
+    2024-11-11 01:22:31,896 - INFO - btrfs subvolume set-default /.btrfsroot/@
+    2024-11-11 01:22:31,896 - INFO - [DRY-RUN MODE] Rollback to /.btrfsroot/@snapshots/7/snapshot complete. Reboot to finish
+
+    Copy kernel and initramfs from snapshot 7 to '/efi/af36e2965f254d26a73f1eb3e6049a8c/' --dry-run...
+    sending incremental file list
+    deleting vmlinuz-linux-zen
+    deleting initramfs-linux-zen.img
+    deleting initramfs-linux-zen-fallback.img
+    ./
+    initramfs-linux.img
+    vmlinuz-linux
+    vmlinuz-linux-lts
+
+    sent 247 bytes  received 117 bytes  728.00 bytes/sec
+    total size is 267.43M  speedup is 734,700.43 (DRY RUN)
+    ```
+
+- Rollback:
+  - `rollback 7`
+&nbsp;
+
+    ```text
+    Installing 'rsync' if not available...
+    warning: rsync-3.3.0-2 is up to date -- skipping
+    there is nothing to do
+    Do you want to just test or execute the rollback? ('e' = execute, other input = test): e
+    Are you SURE you want to rollback? Type 'CONFIRM' to continue: CONFIRM
+    2024-11-11 01:26:45,597 - INFO - Rollback to /.btrfsroot/@snapshots/7/snapshot complete. Reboot to finish
+
+    Copy kernel and initramfs from snapshot 7 to '/efi/af36e2965f254d26a73f1eb3e6049a8c/'...
+    sending incremental file list
+    deleting vmlinuz-linux-zen
+    deleting initramfs-linux-zen.img
+    deleting initramfs-linux-zen-fallback.img
+    ./
+    initramfs-linux.img
+            16.22M 100%  514.67MB/s    0:00:00 (xfr#1, to-chk=2/7)
+    vmlinuz-linux
+            13.48M 100%  217.90MB/s    0:00:00 (xfr#2, to-chk=1/7)
+    vmlinuz-linux-lts
+            13.00M 100%  145.87MB/s    0:00:00 (xfr#3, to-chk=0/7)
+
+    sent 42.72M bytes  received 169 bytes  85.43M bytes/sec
+    total size is 267.43M  speedup is 6.26
+    ```
+
+  - `sudo reboot`
+
+> :memo: **Default subvolume**
 > <https://btrfs.readthedocs.io/en/latest/Subvolumes.html>
 > ... the subvolume that will be mounted by default, unless the default subvolume has been changed (see `btrfs subvolume set-default`).
 
-- `sudo snapper-rollback <snapshot-number>` # really do the rollback now
-- `sudo reboot`
 &nbsp;
 
+##### Manual Snapshot after Rollback
 - <https://wiki.archlinux.org/title/Snapper#Single_snapshots>
-- you could manually create a new snapshot after the rollback and reboot to see in the snapshot list for better unterstanding what has been going on, e.g.:
-  - `sudo snapper -c root create -c number --description "after snapper-rollback <snapshot-number>"`
+- You could manually create a new snapshot (after rollback and reboot) to show up in the snapshot list, for better unterstanding what has been done, e.g.:
+  - `sudo snapper -c root create -c number --description "after rollback 7"`
+  - `sudo snapper list`
+&nbsp;
+
+    ```text
+    # │ Type   │ Pre # │ Date                            │ User │ Cleanup │ Description                                                              │ Userdata
+    ───┼────────┼───────┼─────────────────────────────────┼──────┼─────────┼──────────────────────────────────────────────────────────────────────────┼─────────
+    [...]
+    11 │ single │       │ Mon 11 Nov 2024 01:38:36 AM CET │ root │ number  │ after rollback 7
+    ```
 
 ### INSERTION: Config zram as swap
 
