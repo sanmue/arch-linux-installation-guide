@@ -135,7 +135,8 @@ But I am using snapper and [snapper-rollback (AUR)](https://aur.archlinux.org/pa
       - [create snapper config file](#create-snapper-config-file)
       - [Config snapper snapshots](#config-snapper-snapshots)
         - [Permissions](#permissions)
-        - [Automatic snapshots and cleanup](#automatic-snapshots-and-cleanup)
+        - [Automatic snapshots](#automatic-snapshots)
+        - [Automatic snapshot cleanup](#automatic-snapshot-cleanup)
       - [Snapper-rollback (AUR)](#snapper-rollback-aur)
         - [Function for rollback](#function-for-rollback)
         - [Rollback example](#rollback-example)
@@ -820,7 +821,8 @@ All packages above together:
 - <https://wiki.archlinux.org/title/Installation_guide#Fstab>
 
 #### Create fstab
-- `genfstab -U /mnt >> /mnt/etc/fstab` # `-U`: use UUIDs
+- `genfstab -U /mnt >> /mnt/etc/fstab` 
+  - `-U`: use UUIDs
 - `cat /mnt/etc/fstab` # check
 
 > :warning: You should delete `subvolid=<subvolid>` in the mount options in fstab if present:
@@ -977,7 +979,8 @@ Start and enable systemd-timesyncd.service (when running in chroot):
 - <https://wiki.archlinux.org/title/Installation_guide#Localization>
 &nbsp;
 
-- `vim /etc/locale.gen` # uncomment `en_US.UTF-8 UTF-8` and other UTF-8 locales you need
+- `vim /etc/locale.gen`
+  - uncomment `en_US.UTF-8 UTF-8` and other UTF-8 locales you need
 - `locale-gen` # Generate the locales
 &nbsp;
 
@@ -1220,6 +1223,10 @@ Successfully initialized system token in EFI variable with 32 bytes.
 Created EFI boot entry "Linux Boot Manager".
 ```
 
+> :warning: **machine-id and UUID**
+>
+> In all the folloging steps remember to change the machin-id and UUID in the examples to the actual values of your machine!
+
 #### Automatic update via systemd service
 
 - <https://wiki.archlinux.org/title/Systemd-boot#systemd_service>
@@ -1315,6 +1322,8 @@ Creating the systemd path and service files:
 
 `systemd-analyze verify /etc/systemd/system/efistub-update.*`
 
+No output is good output here `:-)`
+
 ##### Enable and start efistub-update.path
 
 `systemctl enable efistub-update.path`
@@ -1328,7 +1337,32 @@ Initially we have to copy the kernel and initramfs manually to the efi partition
 Check:
 
 - `ls -lah /boot`
+
+    ```text
+    total 288M
+    [...]
+    -rw------- 1 root root 135M Nov 12 19:14 initramfs-linux-fallback.img
+    -rw------- 1 root root  90M Nov 12 19:14 initramfs-linux-lts-fallback.img
+    -rw------- 1 root root  16M Nov 12 19:14 initramfs-linux-lts.img
+    -rw------- 1 root root  16M Nov 12 19:14 initramfs-linux.img
+    -rw-r--r-- 1 root root  13M Nov 12 19:06 vmlinuz-linux
+    -rw-r--r-- 1 root root  13M Nov 12 19:06 vmlinuz-linux-lts
+    ```
+
 - `ls -lah /efi/af36e2965f254d26a73f1eb3e6049a8c`
+
+    ```text
+    total 288M
+    [...]
+    -rw-r----- 1 root root 135M Nov 12 19:14 initramfs-linux-fallback.img
+    -rw-r----- 1 root root  90M Nov 12 19:14 initramfs-linux-lts-fallback.img
+    -rw-r----- 1 root root  16M Nov 12 19:14 initramfs-linux-lts.img
+    -rw-r----- 1 root root  16M Nov 12 19:14 initramfs-linux.img
+    -rw-r----- 1 root root  13M Nov 12 19:06 vmlinuz-linux
+    -rw-r----- 1 root root  13M Nov 12 19:06 vmlinuz-linux-lts
+    ```
+
+Since we used dmask + fmask in our mount options for de efi partition, the access rights differ.
 
 #### Loader configuration
 
@@ -1388,15 +1422,15 @@ machine-ID in our example is: af36e2965f254d26a73f1eb3e6049a8c (see further abov
 - and optional (encryption and no encryption) add to conf file:
 
   ```text
-  machine-id 46ccd99c37fa4e3cb5bfe076152df18f
+  machine-id af36e2965f254d26a73f1eb3e6049a8c
   ```
 
 - **systemd-boot only** (encryption and no encryption): optional add to `options` in conf file:
-  - `systemd.machine-id=46ccd99c37fa4e3cb5bfe076152df18f`
+  - `systemd.machine-id=af36e2965f254d26a73f1eb3e6049a8c`
   - e.g. with enryption:
 
     ```text
-    options rootflags=subvol=/@ rd.luks.name=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA=root root=/dev/mapper/root rw systemd.machine-id=46ccd99c37fa4e3cb5bfe076152df18f
+    options rootflags=subvol=/@ rd.luks.name=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA=root root=/dev/mapper/root rw systemd.machine-id=af36e2965f254d26a73f1eb3e6049a8c
     ```
 
 > :memo: **Note:**
@@ -1416,7 +1450,7 @@ machine-ID in our example is: af36e2965f254d26a73f1eb3e6049a8c (see further abov
 
   ```text
   title      Arch Linux LTS
-  machine-id 46ccd99c37fa4e3cb5bfe076152df18f
+  machine-id af36e2965f254d26a73f1eb3e6049a8c
   linux      /af36e2965f254d26a73f1eb3e6049a8c/vmlinuz-linux-lts
   initrd     /af36e2965f254d26a73f1eb3e6049a8c/initramfs-linux-lts.img
   options    rootflags=subvol=/@ root=UUID=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA rw
@@ -1426,7 +1460,7 @@ machine-ID in our example is: af36e2965f254d26a73f1eb3e6049a8c (see further abov
 
   ```text
   title      Arch Linux LTS
-  machine-id 46ccd99c37fa4e3cb5bfe076152df18f
+  machine-id af36e2965f254d26a73f1eb3e6049a8c
   linux      /af36e2965f254d26a73f1eb3e6049a8c/vmlinuz-linux-lts
   initrd     /af36e2965f254d26a73f1eb3e6049a8c/initramfs-linux-lts.img
   options    rootflags=subvol=/@ rd.luks.name=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA=root root=/dev/mapper/root rw
@@ -1441,7 +1475,7 @@ machine-ID in our example is: af36e2965f254d26a73f1eb3e6049a8c (see further abov
 
   ```text
   title      Arch Linux (fallback initramfs)
-  machine-id 46ccd99c37fa4e3cb5bfe076152df18f
+  machine-id af36e2965f254d26a73f1eb3e6049a8c
   linux      /af36e2965f254d26a73f1eb3e6049a8c/vmlinuz-linux
   initrd     /af36e2965f254d26a73f1eb3e6049a8c/initramfs-linux-fallback.img
   options    rootflags=subvol=/@ root=UUID=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA rw
@@ -1451,7 +1485,7 @@ machine-ID in our example is: af36e2965f254d26a73f1eb3e6049a8c (see further abov
 
   ```text
   title      Arch Linux (fallback initramfs)
-  machine-id 46ccd99c37fa4e3cb5bfe076152df18f
+  machine-id af36e2965f254d26a73f1eb3e6049a8c
   linux      /af36e2965f254d26a73f1eb3e6049a8c/vmlinuz-linux
   initrd     /af36e2965f254d26a73f1eb3e6049a8c/initramfs-linux-fallback.img
   options    rootflags=subvol=/@ rd.luks.name=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA=root root=/dev/mapper/root rw
@@ -1464,7 +1498,7 @@ machine-ID in our example is: af36e2965f254d26a73f1eb3e6049a8c (see further abov
 
   ```text
   title      Arch Linux LTS (fallback initramfs)
-  machine-id 46ccd99c37fa4e3cb5bfe076152df18f
+  machine-id af36e2965f254d26a73f1eb3e6049a8c
   linux      /af36e2965f254d26a73f1eb3e6049a8c/vmlinuz-linux-lts
   initrd     /af36e2965f254d26a73f1eb3e6049a8c/initramfs-linux-lts-fallback.img
   options    rootflags=subvol=/@ root=UUID=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA rw
@@ -1474,7 +1508,7 @@ machine-ID in our example is: af36e2965f254d26a73f1eb3e6049a8c (see further abov
 
   ```text
   title      Arch Linux LTS (fallback initramfs)
-  machine-id 46ccd99c37fa4e3cb5bfe076152df18f
+  machine-id af36e2965f254d26a73f1eb3e6049a8c
   linux      /af36e2965f254d26a73f1eb3e6049a8c/vmlinuz-linux-lts
   initrd     /af36e2965f254d26a73f1eb3e6049a8c/initramfs-linux-lts-fallback.img
   options    rootflags=subvol=/@ rd.luks.name=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA=root root=/dev/mapper/root rw
@@ -1489,9 +1523,9 @@ In the loader entries add to `options` (separated by space):
   - <https://wiki.archlinux.org/title/Improving_performance#Watchdogs>
   - ok to set for non-critical home / desktop use case
 - **systemd-boot only**, options: `systemd.machine_id=<MACHINEID>`
-  - e.g.: `systemd.machine_id=46ccd99c37fa4e3cb5bfe076152df18f`
-  - options (encryption): `options    rootflags=subvol=/@ rd.luks.name=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA=root root=/dev/mapper/root rw systemd.machine_id=46ccd99c37fa4e3cb5bfe076152df18f`
-  - options (no encryption): `options    rootflags=subvol=/@ root=UUID=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA rw systemd.machine_id=46ccd99c37fa4e3cb5bfe076152df18f`
+  - e.g.: `systemd.machine_id=af36e2965f254d26a73f1eb3e6049a8c`
+  - options (encryption): `options    rootflags=subvol=/@ rd.luks.name=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA=root root=/dev/mapper/root rw systemd.machine_id=af36e2965f254d26a73f1eb3e6049a8c`
+  - options (no encryption): `options    rootflags=subvol=/@ root=UUID=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA rw systemd.machine_id=af36e2965f254d26a73f1eb3e6049a8c`
 
 #### Check config
 
@@ -1621,15 +1655,20 @@ Connect to (virtual) machine:
 &nbsp;
 
 - `sudo umount /.snapshots`
-- `sudo rm -r /.snapshots` # # delete **folder** `/.snapshots`, since it will be created when creating snapper config (which would complain otherwise) in the next step
-- `sudo snapper -c root create-config /` # # create new config named 'root'
-- `sudo btrfs subvolume delete /.snapshots` # # delete **subvolume** `.snappshots` created with the last command (we already have subvolume `@snapshots`)
-- `sudo mkdir /.snapshots` # # create **folder** `/.snapshots` again, since was also deleted with the last command
-- `sudo mount -a` # # mount all filesystems mentioned in fstab
+- `sudo rm -r /.snapshots`
+  - deletes **folder** `/.snapshots`, since it will be created when creating snapper config (which would complain otherwise) in the next step
+- `sudo snapper -c root create-config /`
+  - creates new config named 'root'
+- `sudo btrfs subvolume delete /.snapshots`
+  - deletes **subvolume** `.snappshots` created with the last command (we already have subvolume `@snapshots`)
+- `sudo mkdir /.snapshots`
+  - creates **folder** `/.snapshots` again, since was also deleted with the last command
+- `sudo mount -a`
+  - mount all filesystems mentioned in fstab
   - or specify explicitly, e.g. no encryption: `sudo mount /dev/vda2 -o subvol=@snapshots,compress=zstd,noatime /.snapshots` # adjust to your device path
 
 > :memo: **Note:**
-> This will make all snapshots that snapper creates be stored outside of the @ subvolume, so that @ can easily be replaced anytime without losing the snapper snapshots.
+> This stores all snapshots that snapper creates outside of the /@ subvolume, so that /@ can easily be replaced anytime without loosing the snapper snapshots.
 
 #### Config snapper snapshots
 
@@ -1648,33 +1687,38 @@ Browse the snapshots directory (optional):
 &nbsp;
 
 - `sudo chown -R :wheel /.snapshots` # optional # members of group 'wheel' can browse the snapshots directory
-- or
+- or:
 - `sudo vim /etc/snapper/configs/root`
   - `ALLOW_GROUPS="wheel"` # groups allowed to work with config
   - `SYNC_ACL="yes"` # sync permissions of `ALLOW_GROUPS` (and `ALLOW_USERS`) to snapshots directory
 
-##### Automatic snapshots and cleanup
+##### Automatic snapshots
 
 - <https://wiki.archlinux.org/title/Snapper#Taking_snapshots>
 - `sudo vim /etc/snapper/configs/root`
   - set: `TIMELINE_CREATE="no"` # optional # disable automatic timeline snapshots via cron daemon
-  - (or: `sudo snapper -c root set-config "TIMELINE_CREATE=no"`)
-  - We will only have automatic pre- and post-snapshots via `snap-pac`
-&nbsp;
+- or: `sudo snapper -c root set-config "TIMELINE_CREATE=no"`
+
+> :memo: With this config we will only have automatic pre- and post-snapshots via `snap-pac`
+
+##### Automatic snapshot cleanup
 
 - <https://wiki.archlinux.org/title/Snapper#Set_snapshot_limits>
-- `sudo sudo systemctl enable --now snapper-cleanup.timer` # periodically clean up older snapshots
+- periodically cleanup older snapshots:
+  - `sudo systemctl enable --now snapper-cleanup.timer`
 
 #### Snapper-rollback (AUR)
 
-Script to rollback snapper snapshots.
-
 - <https://aur.archlinux.org/packages/snapper-rollback>
 - <https://www.youtube.com/watch?v=maIu1d2lAiI>
-&nbsp;
+
+Preparation:
 
 - `su USERNAME` # switch to the account of the new user, if not already done
 - `cd` # go to user's home directory
+
+Download and install snapper-rollback:
+
 - Download the sources for 'snapper-rollback' from AUR:
   - `curl -L -O https://aur.archlinux.org/cgit/aur.git/snapshot/snapper-rollback.tar.gz`
 - `tar -xf snapper-rollback.tar.gz` # extract archive
@@ -1682,13 +1726,13 @@ Script to rollback snapper snapshots.
 - `makepkg -sic` # build package, install dependencies, install (or upgrade) package, clean up leftover work files and directories
 - `cd ..`
 - `rm -rf snapper-rollback snapper-rollback.tar.gz` # delete the folder an file which is no longer required
-&nbsp;
+
+Config snapper-rollback:
 
 - `sudo btrfs subvolume list / | grep -e "@\?snapshots"` # list subvolumes with name 'snapshots'
 - `sudo vim /etc/snapper-rollback.conf` # adjust config:
-  - change mountpoint: `mountpoint = /.btrfsroot` (adding '.' according to the name of our created folder)
+  - change mountpoint: `mountpoint = /.btrfsroot` (adding '`.`' according to the name of our created folder)
   - no need to adjust the name of the snapshot subvolume, since we used `@snapshots`
-  - when using 'archinstall' skript the name of the snapshot subvolume is `@.snapshots` (as of 10/2024) and you would have to adjust it here
 
 > :memo: **Note:**
 > If you can't boot the system anymore, you have to rollback manually via live cd.
@@ -1704,9 +1748,10 @@ Script to rollback snapper snapshots.
 
 ##### Function for rollback
 
-Since we want to rollback and also copy the kernel and initramfs files matching the snapshot to the efi partition, we will use a function (`rollback`).
+Since we want to rollback and also copy the kernel and initramfs files matching the snapshot to the efi partition, we will use a function (`rollback`) to help us.
 
-Insert into your shell config file (e.g.: `vim ~/.bashrc` (for bash) and/or `vim ~/.zshrc` (for zsh), ...):
+Insert the following code into your shell config file (e.g.: `vim ~/.bashrc` (for bash) and/or `vim ~/.zshrc` (for zsh), ...):
+Afterwards you can call the function in the terminal.
 
 ```bash
 # function to rollback to a specified snapshot ID
@@ -1806,7 +1851,10 @@ rollback() {
     total size is 267.43M  speedup is 734,700.43 (DRY RUN)
     ```
 
-- Rollback:
+- **Actually perform the rollback:**
+
+  > :warning:
+
   - `rollback 7`
 &nbsp;
 
@@ -1815,6 +1863,7 @@ rollback() {
     warning: rsync-3.3.0-2 is up to date -- skipping
     there is nothing to do
     Do you want to just test or execute the rollback? ('e' = execute, other input = test): e
+
     Are you SURE you want to rollback? Type 'CONFIRM' to continue: CONFIRM
     2024-11-11 01:26:45,597 - INFO - Rollback to /.btrfsroot/@snapshots/7/snapshot complete. Reboot to finish
 
