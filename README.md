@@ -165,7 +165,7 @@ But I am using snapper and [snapper-rollback (AUR)](https://aur.archlinux.org/pa
         - [Managing TLS certificates](#managing-tls-certificates)
     - [Service management](#service-management)
       - [Retrieve and filter the latest Pacman mirror list via Reflector](#retrieve-and-filter-the-latest-pacman-mirror-list-via-reflector)
-      - [avahi, haveged, upower](#avahi-haveged-upower)
+      - [avahi and upower](#avahi-and-upower)
       - [Enable further services](#enable-further-services)
     - [System maintenance](#system-maintenance)
       - [pacman-contrib](#pacman-contrib)
@@ -200,7 +200,7 @@ But I am using snapper and [snapper-rollback (AUR)](https://aur.archlinux.org/pa
       - [Intel](#intel)
       - [Nvidia](#nvidia)
     - [Desktop environments](#desktop-environments)
-      - [Example installation: Gnome](#example-installation-gnome)
+      - [Example installation:Gnome](#example-installationgnome)
   - [Power management](#power-management)
   - [Multimedia](#multimedia)
     - [Sound system](#sound-system)
@@ -1332,7 +1332,7 @@ No output is good output here `:-)`
 
 Initially we have to copy the kernel and initramfs manually to the efi partition:
 
-- `cp -af /boot/* /efi/af36e2965f254d26a73f1eb3e6049a8c/`
+- `sudo rsync -aPhEv --delete --exclude *ucode.img  /boot/* /efi/af36e2965f254d26a73f1eb3e6049a8c/`
 
 Check:
 
@@ -1784,7 +1784,7 @@ rollback() {
         sudo snapper-rollback "${snapshotID}"
         
         echo -e "\nCopy kernel and initramfs from snapshot ${snapshotID} to '${efiPartition_targetPath}'..."
-        sudo rsync -aPhEv --delete "${snapshot_bootFolder}" "${efiPartition_targetPath}"
+        sudo rsync -aPhEv --delete --exclude *ucode.img "${snapshot_bootFolder}" "${efiPartition_targetPath}"
     else
         rollbackParameter="--dry-run"
         rsyncParameter="--dry-run"
@@ -1793,7 +1793,7 @@ rollback() {
         sudo snapper-rollback "${rollbackParameter}" "${snapshotID}"
 
         echo -e "\nCopy kernel and initramfs from snapshot ${snapshotID} to '${efiPartition_targetPath}' ${rsyncParameter}..."
-        sudo rsync -aPhEv --delete "${rsyncParameter}" "${snapshot_bootFolder}" "${efiPartition_targetPath}"
+        sudo rsync -aPhEv --delete --exclude *ucode.img "${rsyncParameter}" "${snapshot_bootFolder}" "${efiPartition_targetPath}"
     fi
   else
     echo "'snapper-rollback' not available, rollback not possible"
@@ -1956,14 +1956,16 @@ rollback() {
 To disable zswap permanently add `zswap.enabled=0` to your kernel parameters:
 
 - **GRUB**
-  - `vim /etc/default/grub`
+  - `sudo vim /etc/default/grub`
     - append `zswap.enabled=0` between the quotes in the `GRUB_CMDLINE_LINUX_DEFAULT` line, separated by space character
     - e.g.:
     - `GRUB_CMDLINE_LINUX_DEFAULT="loglevel=3 quiet cryptdevice=UUID=2ee5664a-fb17-4762-8e3d-d8e4b8823815:root root=/dev/mapper/root zswap.enabled=0"`
   - re-generate the `grub.cfg` file:
-    - `grub-mkconfig -o /boot/grub/grub.cfg`
+    - `sudo grub-mkconfig -o /boot/grub/grub.cfg`
 - **Systemd-boot**
-  - modify options for the loader entries config files: `sudo vim /boot/loader/entries/arch.conf` and `sudo vim /boot/loader/entries/arch-fallback.conf`
+  - modify options for the loader entries config files, e.g. for 'linux' kernel: 
+    - `sudo vim /efi/loader/entries/76b52fbb2d08452d91f404053bf782f4-arch.conf` and `/efi/loader/entries/76b52fbb2d08452d91f404053bf782f4-arch-fallback.conf`
+    - append `zswap.enabled=0`
     - e.g.: `rootflags=subvol=/@ rd.luks.name=2ee5664a-fb17-4762-8e3d-d8e4b8823815=root root=/dev/mapper/root rw zswap.enabled=0`
 
 Check if disabled (after a reboot):
@@ -2077,7 +2079,7 @@ Microcode install
     - `SUDO_EDITOR=vim sudoedit /path/to/file`
   - or
   - <https://wiki.archlinux.org/title/Environment_variables#Per_user>
-    - Edit your shell config (e.g. `~/.bashrc`, `~/.zshrc`, ...)
+    - Edit your shell config (e.g. `vim ~/.bashrc`, `vim ~/.zshrc`, ...)
     - `export SUDO_EDITOR=vim` # ajust to your preferred editor
     - source your shell config, e.g. `source ~/.bashrc`, to make the variable available in current terminal session
     - and use `sudoedit` directly
@@ -2190,7 +2192,7 @@ Show all listening processes and their numeric tcp and udp port numbers:
   - <span style="color:red">WARNING:</span>
     - Before adding this to your configuration, make sure that all accounts which require SSH access have public-key authentication set up in the corresponding authorized_keys files.
     - See [SSH keys#Copying the public key to the remote server](https://wiki.archlinux.org/title/SSH_keys#Copying_the_public_key_to_the_remote_server) for more information.
-  - `vim /etc/ssh/sshd_config.d/20-force_publickey_auth.conf`
+  - `sudo vim /etc/ssh/sshd_config.d/20-force_publickey_auth.conf`
     - insert:
     - `PasswordAuthentication no`
     - `AuthenticationMethods publickey`
@@ -2240,7 +2242,7 @@ Probably not all packages are installed yet.
 - start the systemd service `reflector.service` # weekly
   - `sudo systemctl enable --now reflector.timer`
 
-#### avahi, haveged, upower
+#### avahi and upower
 
 - `sudo pacman -S --needed avahi upower` # or install later / separately if needed
 - `sudo systemctl enable avahi-daemon` # Network / Service Discovery for Linux using mDNS/DNS-SD (compatible with Bonjour)
@@ -2490,21 +2492,21 @@ Include = /etc/pacman.d/mirrorlist
 
 [Check Wiki](https://wiki.archlinux.org/title/AMDGPU) for updated / special Info!
 
-- `pacman -S mesa vulkan-radeon libva-mesa-driver mesa-vdpau`
-- `pacman -S lib32-mesa lib32-vulkan-radeon lib32-libva-mesa-driver lib32-mesa-vdpau` # 32-bit application support
+- `sudo pacman -S mesa vulkan-radeon libva-mesa-driver mesa-vdpau`
+- `sudo pacman -S lib32-mesa lib32-vulkan-radeon lib32-libva-mesa-driver lib32-mesa-vdpau` # 32-bit application support
 
 #### Intel
 
 [Check Wiki](https://wiki.archlinux.org/title/Intel_graphics) for updated / special Info!
 Hardware acceleration: <https://wiki.archlinux.org/title/Hardware_video_acceleration#Intel>
 
-- `pacman -S mesa vulkan-intel libva-mesa-driver mesa-vdpau`
-- `pacman -S intel-media-driver` # Hardware acceleration
-- `pacman -S lib32-mesa lib32-vulkan-intel` # 32-bit application support
+- `sudo pacman -S mesa vulkan-intel libva-mesa-driver mesa-vdpau`
+- `sudo pacman -S intel-media-driver` # Hardware acceleration
+- `sudo pacman -S lib32-mesa lib32-vulkan-intel` # 32-bit application support
 
 #### Nvidia
 
-[Check Wiki](https://wiki.archlinux.org/title/Intel_graphics) for updated / special Info!
+[Check Wiki](https://wiki.archlinux.org/title/Intel_graphics) for updated / special Info.
 
 ### Desktop environments
 
@@ -2513,13 +2515,13 @@ Hardware acceleration: <https://wiki.archlinux.org/title/Hardware_video_accelera
 
 There are many, choose the one you like.
 
-#### Example installation: Gnome
+#### Example installation:Gnome
 
 - <https://wiki.archlinux.org/title/GNOME#>
 &nbsp;
 
-- (`pacman -S xorg` # display server # group with additional packages and fonts)
-  - optional, the `gnome` package in the next step installs what it needs
+- (`sudo pacman -S xorg` # display server # group with additional packages and fonts)
+  - optional, the `gnome` package in the next step installs what it needs automatically
     - Gnome default is [Wayland](https://wiki.archlinux.org/title/Wayland) now
   - install if you want / need X Window System too
 - `sudo pacman -S gnome` # base GNOME desktop with core apps
@@ -2570,12 +2572,12 @@ The `libavcodec` codecs are included with media players such as MPlayer and VLC,
 
 GStreamer
 
-- `pacman -S --needed gstreamer gst-libav gst-plugins-bad gst-plugins-base gst-plugins-good gst-plugin-pipewire gst-plugin-va`
-- `rm ~/.cache/gstreamer-1.0/registry.*.bin`
+- `sudo pacman -S --needed gstreamer gst-libav gst-plugins-bad gst-plugins-base gst-plugins-good gst-plugin-pipewire gst-plugin-va`
+- `sudo rm ~/.cache/gstreamer-1.0/registry.*.bin`
 
 FFmpeg
 
-- `pacman -S --needed ffmpeg`
+- `sudo pacman -S --needed ffmpeg`
 
 [...]
 
@@ -2661,12 +2663,12 @@ standards-based, open source printing system
 Already covered in a previous step (Service Managment)
 
 - Installaton
-  - `pacman -S cups cups-pdf`
+  - `sudo pacman -S cups cups-pdf`
     - `cups-pdf`: "print" into a PDF document
 - Service
-  - always starting on boot: `systemctl enable --now cups.service`
+  - always starting on boot: `sudo systemctl enable --now cups.service`
   - or
-  - only start CUPS when a program wants to use the service: `systemctl enable --now cups.socket`
+  - only start CUPS when a program wants to use the service: `sudo systemctl enable --now cups.socket`
 
 ## Appearance
 
@@ -2688,12 +2690,12 @@ Already covered in a previous step (Service Managment)
 
 - Via Pacman:
   - pick the one you like, e.g. from the [Fonts Families](https://wiki.archlinux.org/title/Fonts#Families)
-  - `sudo pacman -S ttf-meslo-nerd ttf-bitstream-vera ttf-bitstream-vera-mono-nerd ttf-dejavu ttf-dejavu-nerd noto-fonts noto-fonts-emoji ttf-fira-code ttf-hack ttf-hack-nerd ttf-jetbrains-mono ttf-jetbrains-mono-nerd adobe-source-code-pro-fonts ttf-liberation ttf-liberation-mono-nerd`
+  - `sudo pacman -S --needed ttf-meslo-nerd ttf-bitstream-vera ttf-bitstream-vera-mono-nerd ttf-dejavu ttf-dejavu-nerd noto-fonts noto-fonts-emoji ttf-fira-code ttf-hack ttf-hack-nerd ttf-jetbrains-mono ttf-jetbrains-mono-nerd adobe-source-code-pro-fonts ttf-liberation ttf-liberation-mono-nerd`
   - ...
 - Manual installation
   - install fonts to `~/.local/share/fonts/` # single user
   - or
-  - `mkdir -p /usr/local/share/fonts` # system-wide (all users)
+  - `sudo mkdir -p /usr/local/share/fonts` # system-wide (all users)
   - Finally, update the fontconfig cache (usually unnecessary as software using the fontconfig library does this):
     - `fc-cache`
 
@@ -2724,9 +2726,9 @@ We already installed `zsh` in a previous step.
 - changing your default shell
   - <https://wiki.archlinux.org/title/Command-line_shell#Changing_your_default_shell>
   - as root / sudo privileges:
-  - `chsh --shell /bin/zsh USERID`
+  - `sudo chsh --shell /bin/zsh USERID`
   - or
-  - `usermod --shell /bin/zsh USERID`
+  - `sudo usermod --shell /bin/zsh USERID`
 
 [...]
 
@@ -2756,16 +2758,16 @@ e.g.: `sudo pacman -S --needed bzip2 bzip3 gzip zstd xz   p7zip zip unzip`
 
 ### Installating packages for virtualization
 
-- `pacman -S --needed qemu-full libvirt iptables-nft dnsmasq openbsd-netcat libguestfs edk2-ovmf swtpm vde2 virt-install`
-  - `systemctl enable --now libvirtd.service`
-  - `systemctl start virtlogd.service`
+- `sudo pacman -S --needed qemu-full libvirt iptables-nft dnsmasq openbsd-netcat libguestfs edk2-ovmf swtpm vde2 virt-install`
+  - `sudo systemctl enable --now libvirtd.service`
+  - `sudo systemctl start virtlogd.service`
 
 ### Client
 
-- `pacman -S --needed virt-manager virt-viewer`
+- `sudo pacman -S --needed virt-manager virt-viewer`
 - and / or cockpit with additinal features
-- `pacman -S --needed  cockpit cockpit-machines cockpit-podman cockpit-storaged cockpit-packagekit udisks2 pcp` # Browser based admin tool for Linux
-  - `systemctl enable --now cockpit.socket`
+- `sudo pacman -S --needed  cockpit cockpit-machines cockpit-podman cockpit-storaged cockpit-packagekit udisks2 pcp` # Browser based admin tool for Linux
+  - `sudo systemctl enable --now cockpit.socket`
 
 ### SPICE
 
@@ -2773,7 +2775,7 @@ e.g.: `sudo pacman -S --needed bzip2 bzip3 gzip zstd xz   p7zip zip unzip`
 
 Enabling SPICE support on the **guest** (Virtual machine):
 
-- `pacman -S spice-vdagent` # install on Virtual machine # Spice agent xorg client that enables copy and paste between client and X-session and more.
+- `sudo pacman -S spice-vdagent` # install on Virtual machine # Spice agent xorg client that enables copy and paste between client and X-session and more.
 
 ## Troubleshooting
 
