@@ -92,7 +92,7 @@ But I am using snapper and [snapper-rollback (AUR)](https://aur.archlinux.org/pa
   - [Initramfs (Create initial ramdisk environment)](#initramfs-create-initial-ramdisk-environment)
     - [Check mkinitcpio.conf](#check-mkinitcpioconf)
       - [Modules](#modules)
-      - [FILES: Include the keyfile for decrypting root partition on boot](#files-include-the-keyfile-for-decrypting-root-partition-on-boot)
+      - [Files: Include the keyfile for decrypting root partition on boot](#files-include-the-keyfile-for-decrypting-root-partition-on-boot)
       - [Hooks](#hooks)
     - [Creating new initramfs](#creating-new-initramfs)
   - [Boot loader](#boot-loader)
@@ -239,7 +239,7 @@ Boot the live installation media.
 &nbsp;
 
 - `localectl list-keymaps` # show all available keymaps, look for yours
-- `loadkeys de-latin1` # load keymap
+- `loadkeys de-latin1` # load keymap (german in this example)
 - `setfont ter-132b` # optional # set (bigger) font # `ter-122b` (maybe big enough) # `setfont -d` (double size, maybe looks kind of blurred)
   - available fonts: `ls /usr/share/kbd/consolefonts/ | less`
 
@@ -309,7 +309,7 @@ Decide for whatever bootloader you like best.
 - `ip link` # Ensure your network interface is listed and enabled / UP, e.g.:
 ```text
 [...]
-2: enp14s0: <BROADCAST,MULTICAST, [...] state UP [...]
+2: enp1s0: <BROADCAST,MULTICAST, [...] state UP [...]
 [...]
 ```
 - verify connection: `ping -c 3 archlinux.org` # send 3 pings
@@ -443,8 +443,8 @@ Device     Start      End  Sectors Size Type
 
 ### Remark regarding partitioning (UEFI and BIOS)
 
-- Note your partition table, as you need the device paths later
-- We will use a swap file instead of a seperate swap partition in this guide
+- Note your partition table, as you need the info later
+- We will use a swap file instead of a seperate swap partition in this guide; or/and zram
   - The swap file will be on the encrypted root partition in its own btrfs subvolume
 - If you opt for a swap partition, you may want to [encrypt](https://wiki.archlinux.org/title/Swap#Swap_encryption) it
 - You could consider using [zram](https://wiki.archlinux.org/title/Zram) instead of (or [additionally to](https://wiki.archlinux.org/title/Zram#Enabling_a_backing_device_for_a_zram_block)) a swap partition or swap file
@@ -459,8 +459,8 @@ Device     Start      End  Sectors Size Type
 #### Encrypting our root partition
 
 - <https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#Encrypting_devices_with_LUKS_mode>
-- **Systemd-boot + XBOOTLDR**:
-  - `cryptsetup luksFormat /dev/vda3`
+- **Systemd-boot**:
+  - `cryptsetup luksFormat /dev/vda2`
 - **GRUB**:
   - `cryptsetup luksFormat --pbkdf pbkdf2 /dev/vda2`
   - <https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#Encryption_options_for_LUKS_mode>
@@ -539,6 +539,7 @@ NAME                      MAJ:MIN RM   SIZE RO TYPE  MOUNTPOINTS
 #### Note regarding password input at boot when using encryption
 
 **GRUB:** When not using a keyfile to decrypt the encrypted root partition: when starting your machine you will be asked twice for a password for decrypting: 1x bootloader, 1x encrypted root partition.
+
 **Systemd-boot:** We do not use a keyfile in this guide (/efi partition is not encrypted). You will currently only be asked once for the password to decrypt the root partition.
 
 > :memo: **keyfile**
@@ -652,20 +653,19 @@ Subvolume-ID 5 (top level 5) = btrfsroot ("/")
 
 ### Mount the efi partition
 
-- <https://wiki.archlinux.org/title/Talk:EFI_system_partition#Mountpoint_umask>
-  - `fmask` + `dmask` mount options are used by EndeavourOS (as of 10/2024)
-
 Only UEFI, skip if BIOS boot mode
 
 - `mount /dev/vda1 -o fmask=0137,dmask=0027 /mnt/efi` # adjust to your device path
   - mount options (`-o`): -> `drwxr-x---`
 
+> :memo: **Mount options**
+> - <https://wiki.archlinux.org/title/Talk:EFI_system_partition#Mountpoint_umask>
+>   - `fmask` + `dmask` mount options are used by EndeavourOS for example (as of 10/2024)
+
 ### Mount the subvolumes
 
-Adjust to your device path.
-
 > :warning: **If root partition is encrypted:**
-> Replace `/dev/vda2` (root partition) with `/dev/mapper/root` (`root` = device mapper name used for enryption / opening encrypted root partition)
+> Replace `/dev/vda2` (root partition) with `/dev/mapper/root` (`root` = device mapper name used for enryption / opening encrypted root partition).
 > The mount command ist the same for GRUB and systemd-boot.
 
 - home
@@ -782,8 +782,8 @@ You could activate parallel downloads by pacman (optional, temporary since we ar
 The minimum would be: `pacstrap -K /mnt base linux linux-firmware` # using 'linux' kernel
 And install the rest while chrooted into the new system (e.g. see: Post-installation -> System administration; after "Users and groups").
 
-> :memo: You could consider installing a second kernel (e.g. lts version), which may bemome handy if you have problems booting with your standard kernel.
-> `linux-lts` and as an "extended package" `linux-lts-headers`
+> :memo: You could consider installing a second kernel (e.g. lts version), which may become handy to have anoter kernel to boot with if you have problems booting with your standard kernel.
+> (e.g.: `linux-lts` and as an "extended package": `linux-lts-headers`)
 
 #### Extended package install
 
@@ -828,8 +828,7 @@ All packages above together:
 > - <https://bbs.archlinux.org/viewtopic.php?id=299085>
 > - <https://github.com/archlinux/arch-install-scripts/commit/added92801fac6b2aafe0362e0deca00da68ec19>:
 >   - Having only one of subvol= and subvolid= is enough for mounting a btrfs subvolume.
->   - And having subvolid= set prevents things like 'snapper rollback' to work, as it
->   - updates the subvolume in-place, leaving subvol= unchanged with a different subvolid.
+>   - And having subvolid= set prevents things like 'snapper rollback' to work, as it updates the subvolume in-place, leaving subvol= unchanged with a different subvolid.
 > - <https://btrfs.readthedocs.io/en/latest/Administration.html#mount-options>
 >   - `subvolid=<subvolid>`
 >   - If both subvolid and subvol are specified, they must point at the same subvolume, otherwise the mount will fail.
@@ -838,9 +837,10 @@ All packages above together:
 > - to:
 >   - `UUID=7986ecc9-7656-4ccc-814f-e58f20e241a5 /          btrfs      rw,noatime,compress=zstd:3,space_cache=v2,subvol=/@ 0 0`
 
-> :memo: The UUIDs shown at 'with enryption' or 'without encrypion' within following points would match.
+&nbsp;
+
+> :memo: The UUIDs shown at 'with enryption' or 'without encrypion' within the following points would normally match.
 > They are only different because it was a seperate new installation each time with new random UUIDs generated.
-ge
 
 #### UEFI/GPT with encryption
 
@@ -945,6 +945,8 @@ UUID=53791c43-d7ad-48fd-bbc9-8f15451d94f0 /.btrfsroot btrfs      rw,noatime,comp
 - <https://wiki.archlinux.org/title/Systemd-timesyncd#Enable_and_start>
 &nbsp;
 
+Set timezone:
+
 - `tzselect` # set time zone interactively
 - or manually, e.g. for Germany:
 - `ln -sf /usr/share/zoneinfo/Europe/Berlin /etc/localtime` # set time zone (symbolic link) # adjust to your location
@@ -1034,21 +1036,19 @@ We installed "NetworkManager" (see: "Install essential packages")
 - <https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#Creating_a_keyfile_with_random_characters>
 - <https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#Storing_the_keyfile_on_a_file_system>
 - <https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#Configuring_LUKS_to_make_use_of_the_keyfile>
-&nbsp;
-
-- **Skip for systemd-boot**
 
 If the root partition is encrypted and you want it to be dercrypted automatically on boot, you can use a keyfile.
-Skip this step, if you no not use enryption or do not want to use keyfile.
 
-> :memo: You will still be asked to enter the passphrase at boot for decrypting bootloader
-> (the passphrase you set when encryptig the root partition, since `/boot` is on the encrypted root partition)
+> **Skip this step, if you do not use enryption or if you do not (want to) use a keyfile (e.g. when using systemd-boot bootloader in this guide).**
 
 - Creating a keyfile and storing it on the file system:
   - `dd bs=512 count=4 if=/dev/random iflag=fullblock | install -m 0600 /dev/stdin /etc/cryptsetup-keys.d/crypto_keyfile.key`
 - Configuring LUKS to make use of the keyfile:
   - e.g.: `cryptsetup luksAddKey /dev/vda2 /etc/cryptsetup-keys.d/crypto_keyfile.key` # `/dev/vda2` is our root partition
     - you will be asked to enter the passphrase you set when encryptig the root partition
+
+> :memo: You will still be asked to enter the passphrase at boot for decrypting bootloader.
+> (With the passphrase you set when encryptig the root partition, since `/boot` is on the encrypted root partition)
 
 The next steps to do are
 
@@ -1075,11 +1075,11 @@ and are described in the following sections.
 - `vim /etc/mkinitcpio.conf`
 - add `btrfs`: `MODULES=(btrfs)`
 
-#### FILES: Include the keyfile for decrypting root partition on boot
+#### Files: Include the keyfile for decrypting root partition on boot
 
 - <https://wiki.archlinux.org/title/Dm-crypt/Device_encryption#With_a_keyfile_embedded_in_the_initramfs>
 
-**Skip this step if you no not use enryption or do not want to use a keyfile (e.g. when using systemd-boot in this guide).**
+> **Skip this step, if you do not use enryption or if you do not (want to) use a keyfile (e.g. when using systemd-boot bootloader in this guide).**
 
 - Include the key in mkinitcpio's FILES array:
   - `vim /etc/mkinitcpio.conf`
@@ -1205,12 +1205,28 @@ Create config file:
 
 `bootctl --entry-token=machine-id --make-entry-directory=yes install`
 
+```text
+Created "/efi/EFI".
+Created "/efi/EFI/systemd".
+Created "/efi/EFI/BOOT".
+Created "/efi/loader".
+Created "/efi/loader/entries".
+Created "/efi/EFI/Linux".
+Copied "/usr/lib/systemd/boot/efi/systemd-bootx64.efi" to "/efi/EFI/systemd/systemd-bootx64.efi".
+Copied "/usr/lib/systemd/boot/efi/systemd-bootx64.efi" to "/efi/EFI/BOOT/BOOTX64.EFI".
+Created "/efi/af36e2965f254d26a73f1eb3e6049a8c".
+Random seed file /efi/loader/random-seed successfully written (32 bytes).
+Successfully initialized system token in EFI variable with 32 bytes.
+Created EFI boot entry "Linux Boot Manager".
+```
+
 #### Automatic update via systemd service
 
 - <https://wiki.archlinux.org/title/Systemd-boot#systemd_service>
 
-To autamatically update systemd-boot enable its update service:
-`systemctl enable systemd-boot-update.service`
+To autamatically update systemd-boot, enable its update service:
+
+- `systemctl enable systemd-boot-update.service`
 
 #### Copy kernel and initramfs to directory on the efi partition
 
@@ -1220,12 +1236,13 @@ Kernel and initramfs files have to be copied to the (unencrypted) efi partition'
 
 We need the machine-ID first: `cat /etc/machine-id`
 
-- prints e.g.: af36e2965f254d26a73f1eb3e6049a8c
+- prints e.g.: `af36e2965f254d26a73f1eb3e6049a8c`
 
-Now we know the destination path on the efi partition: `/efi/af36e2965f254d26a73f1eb3e6049a8c/`
+Now we can put together the destination path on the efi partition: `/efi/af36e2965f254d26a73f1eb3e6049a8c/`
 &nbsp;
 
 > :memo: **Access to kernel and initramfs**
+> 
 > Systemd-boot needs access to the kernel and initramfs (unencrypted), which are generated by `mkinitcpio` (according to its current config) into the `/boot` folder on the encrypted root partition / root subvolume.
 > 
 > This has the advantage that `/boot` is included in the snapshots of the root subvolume. So we have the kernel and initramfs available which match the status of the snapshot if we need it (e.g. if we make a rollback).
@@ -1233,9 +1250,11 @@ Now we know the destination path on the efi partition: `/efi/af36e2965f254d26a73
 > The drawback is that we need to copy kernel and initramfs to a directory on the efi partition and config the systemd-boot loader entries to point there.
 
 > :memo: **Automated copy of kernel and initramfs**
+> 
 > Copy of kernel and initramfs after every kernel update to the directory on the efi partition will be automated via systemd (see further below).
 
 > :memo: **Kernel and initramfs when rolling back to a desired snapshot**
+> 
 > In this guide we will use `snapper-rollback` (AUR) for rolling back to a desired snapshot.
 > 
 > When installing and configuring `snapper-rollback` at a later step (Post-install step after reboot), we will not use snapper-rollback directly, but have a `rollback` function which also copies the kernel and initramfs files matching the state of the snapshot to rollback to.
@@ -1258,14 +1277,12 @@ Creating the systemd path and service files:
 
   [Path]
   PathChanged=/boot/initramfs-linux-fallback.img
-  Unit=efistub-update.service
-
   #if you have multiple kernels installed, you can add them here too, e.g. for lts kernel:
-  [Path]
   PathChanged=/boot/initramfs-linux-lts-fallback.img
-  Unit=efistub-update.service
-  #you have to add 'ExecStart's in the efistub-update.service file to copy this kernel and initramfs files
+  #you have to add corresponding 'ExecStart's in the efistub-update.service file to copy this kernel and initramfs files
   #or create a separate service file for each kernel
+
+  Unit=efistub-update.service
 
   [Install]
   WantedBy=multi-user.target
@@ -1273,6 +1290,7 @@ Creating the systemd path and service files:
   ```
 
 - `vim /etc/systemd/system/efistub-update.service`
+  - the target path for the copy action ist the efi partition + machine-ID: `/efi/af36e2965f254d26a73f1eb3e6049a8c/`
 
   ```text
   [Unit]
@@ -1303,7 +1321,14 @@ Creating the systemd path and service files:
 
 ##### Copy of kernel and initramfs using systemd service
 
-`systemctl start efistub-update.service`
+Initially we have to copy the kernel and initramfs manually to the efi partition:
+
+- `cp -af /boot/* /efi/af36e2965f254d26a73f1eb3e6049a8c/`
+
+Check:
+
+- `ls -lah /boot`
+- `ls -lah /efi/af36e2965f254d26a73f1eb3e6049a8c`
 
 #### Loader configuration
 
@@ -1312,6 +1337,8 @@ Creating the systemd path and service files:
 &nbsp;
 
 machine-ID in our example is: af36e2965f254d26a73f1eb3e6049a8c (see further above)
+
+> :warning: **Delimiter:** Use **spaces** (NOT tabs)
 
 - `vim /efi/loader/loader.conf`
 
@@ -1322,11 +1349,8 @@ machine-ID in our example is: af36e2965f254d26a73f1eb3e6049a8c (see further abov
   editor       no
   ```
 
-> :memo: **Delimiter**
-> Use **spaces** (NOT tabs) as delimiter.
-
 - if you have set `timeout 0`, the boot menu can be accessed by pressing Space.
-- `default`: a glob pattern to select the default entry...
+- `default ....-*`: a glob pattern to select the default entry...
   - you may also set `default` to one prefered loader entry, e.g.:
   - `default af36e2965f254d26a73f1eb3e6049a8c-arch.conf`
 
@@ -1334,6 +1358,8 @@ machine-ID in our example is: af36e2965f254d26a73f1eb3e6049a8c (see further abov
 
 - <https://wiki.archlinux.org/title/Systemd-boot#Adding_loaders>
 - <https://uapi-group.org/specifications/specs/boot_loader_specification/>
+
+> :warning: **Delimiter:** Use **spaces** (NOT tabs)
 
 ##### Standard loaders
 
@@ -1344,8 +1370,8 @@ machine-ID in our example is: af36e2965f254d26a73f1eb3e6049a8c (see further abov
 
   ```text
   title      Arch Linux
-  linux      /vmlinuz-linux
-  initrd     /initramfs-linux.img
+  linux      /af36e2965f254d26a73f1eb3e6049a8c/vmlinuz-linux
+  initrd     /af36e2965f254d26a73f1eb3e6049a8c/initramfs-linux.img
   options    rootflags=subvol=/@ root=UUID=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA rw
   ```
 
@@ -1354,8 +1380,8 @@ machine-ID in our example is: af36e2965f254d26a73f1eb3e6049a8c (see further abov
 
   ```text
   title      Arch Linux
-  linux      /vmlinuz-linux
-  initrd     /initramfs-linux.img
+  linux      /af36e2965f254d26a73f1eb3e6049a8c/vmlinuz-linux
+  initrd     /af36e2965f254d26a73f1eb3e6049a8c/initramfs-linux.img
   options    rootflags=subvol=/@ rd.luks.name=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA=root root=/dev/mapper/root rw
   ```
 
@@ -1370,7 +1396,7 @@ machine-ID in our example is: af36e2965f254d26a73f1eb3e6049a8c (see further abov
   - e.g. with enryption:
 
     ```text
-    `options rootflags=subvol=/@ rd.luks.name=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA=root root=/dev/mapper/root rw`
+    options rootflags=subvol=/@ rd.luks.name=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA=root root=/dev/mapper/root rw systemd.machine-id=46ccd99c37fa4e3cb5bfe076152df18f
     ```
 
 > :memo: **Note:**
@@ -1391,8 +1417,8 @@ machine-ID in our example is: af36e2965f254d26a73f1eb3e6049a8c (see further abov
   ```text
   title      Arch Linux LTS
   machine-id 46ccd99c37fa4e3cb5bfe076152df18f
-  linux      /vmlinuz-linux-lts
-  initrd     /initramfs-linux-lts.img
+  linux      /af36e2965f254d26a73f1eb3e6049a8c/vmlinuz-linux-lts
+  initrd     /af36e2965f254d26a73f1eb3e6049a8c/initramfs-linux-lts.img
   options    rootflags=subvol=/@ root=UUID=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA rw
   ```
 
@@ -1401,8 +1427,8 @@ machine-ID in our example is: af36e2965f254d26a73f1eb3e6049a8c (see further abov
   ```text
   title      Arch Linux LTS
   machine-id 46ccd99c37fa4e3cb5bfe076152df18f
-  linux      /vmlinuz-linux-lts
-  initrd     /initramfs-linux-lts.img
+  linux      /af36e2965f254d26a73f1eb3e6049a8c/vmlinuz-linux-lts
+  initrd     /af36e2965f254d26a73f1eb3e6049a8c/initramfs-linux-lts.img
   options    rootflags=subvol=/@ rd.luks.name=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA=root root=/dev/mapper/root rw
   ```
 
@@ -1416,8 +1442,8 @@ machine-ID in our example is: af36e2965f254d26a73f1eb3e6049a8c (see further abov
   ```text
   title      Arch Linux (fallback initramfs)
   machine-id 46ccd99c37fa4e3cb5bfe076152df18f
-  linux      /vmlinuz-linux
-  initrd     /initramfs-linux-fallback.img
+  linux      /af36e2965f254d26a73f1eb3e6049a8c/vmlinuz-linux
+  initrd     /af36e2965f254d26a73f1eb3e6049a8c/initramfs-linux-fallback.img
   options    rootflags=subvol=/@ root=UUID=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA rw
   ```
 
@@ -1426,8 +1452,8 @@ machine-ID in our example is: af36e2965f254d26a73f1eb3e6049a8c (see further abov
   ```text
   title      Arch Linux (fallback initramfs)
   machine-id 46ccd99c37fa4e3cb5bfe076152df18f
-  linux      /vmlinuz-linux
-  initrd     /initramfs-linux-fallback.img
+  linux      /af36e2965f254d26a73f1eb3e6049a8c/vmlinuz-linux
+  initrd     /af36e2965f254d26a73f1eb3e6049a8c/initramfs-linux-fallback.img
   options    rootflags=subvol=/@ rd.luks.name=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA=root root=/dev/mapper/root rw
   ```
 
@@ -1439,8 +1465,8 @@ machine-ID in our example is: af36e2965f254d26a73f1eb3e6049a8c (see further abov
   ```text
   title      Arch Linux LTS (fallback initramfs)
   machine-id 46ccd99c37fa4e3cb5bfe076152df18f
-  linux      /vmlinuz-linux-lts
-  initrd     /initramfs-linux-lts-fallback.img
+  linux      /af36e2965f254d26a73f1eb3e6049a8c/vmlinuz-linux-lts
+  initrd     /af36e2965f254d26a73f1eb3e6049a8c/initramfs-linux-lts-fallback.img
   options    rootflags=subvol=/@ root=UUID=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA rw
   ```
 
@@ -1449,8 +1475,8 @@ machine-ID in our example is: af36e2965f254d26a73f1eb3e6049a8c (see further abov
   ```text
   title      Arch Linux LTS (fallback initramfs)
   machine-id 46ccd99c37fa4e3cb5bfe076152df18f
-  linux      /vmlinuz-linux-lts
-  initrd     /initramfs-linux-lts-fallback.img
+  linux      /af36e2965f254d26a73f1eb3e6049a8c/vmlinuz-linux-lts
+  initrd     /af36e2965f254d26a73f1eb3e6049a8c/initramfs-linux-lts-fallback.img
   options    rootflags=subvol=/@ rd.luks.name=1C2A3274-4C0B-4146-A5B7-EC8C5235E1FA=root root=/dev/mapper/root rw
   ```
 
@@ -1495,7 +1521,7 @@ In the loader entries add to `options` (separated by space):
 
 ### Optionally manually unmount all the partitions
 
-- ~~(`swapoff /mnt/swap/swapfile`)~~
+- `swapoff /mnt/swap/swapfile`
 - `umount -R /mnt` # manually unmount all the partitions, allows noticing any "busy" partitions
   - also unmounts "CDROM", USB device ... arch installation medium
 
