@@ -1095,7 +1095,12 @@ For LVM, **system** encryption or RAID, modify mkinitcpio.conf(5) (`/etc/mkinitc
 - `vim /etc/mkinitcpio.conf`
 - No Encryption:
   - GRUB:
-    - `HOOKS`: default should be ok, nothing to do
+    - `HOOKS`: default should be ok, nothing to do:
+
+    ```text
+    HOOKS=(base udev autodetect microcode modconf kms keyboard keymap consolefont block filesystems fsck)
+    ```
+
   - Systemd-boot:
     - `HOOKS`: replace `udev` with `systemd` and `keymap consolefont` with `sd-vconsole`
       - results in e.g.: `HOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block filesystems fsck)`
