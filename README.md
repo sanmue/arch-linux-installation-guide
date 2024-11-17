@@ -27,7 +27,7 @@ But I am using snapper and [snapper-rollback (AUR)](https://aur.archlinux.org/pa
 
 ## Table of Content
 
-- [Arch Linux Installation Guide - A Practical Example](#arch-linux-installation-guide---a-practical-example)
+- [Arch Linux Installation Guide - A Practical Example](#arch-linux-installation-guide-a-practical-example)
   - [Intro](#intro)
   - [Table of Content](#table-of-content)
   - [=== Pre-installation steps ===](#-pre-installation-steps-)
@@ -1523,7 +1523,7 @@ machine-ID in our example is: af36e2965f254d26a73f1eb3e6049a8c (see further abov
 
 In the loader entries add to `options` (separated by space):
 
-- `nvme_load=YES` # if you have an (NVME) SSD
+- `nvme_load=YES` # for root partition is on an NVME device
 - `nowatchdog`
   - <https://wiki.archlinux.org/title/Improving_performance#Watchdogs>
   - ok to set for non-critical home / desktop use case
