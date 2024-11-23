@@ -32,7 +32,7 @@ But I am using snapper and [snapper-rollback (AUR)](https://aur.archlinux.org/pa
   - [Table of Content](#table-of-content)
   - [=== Pre-installation steps ===](#-pre-installation-steps-)
   - [Keyboard layout and font](#keyboard-layout-and-font)
-  - [Excursus: Connecting to the machine to be installed via ssh](#excursus-connecting-to-the-machine-to-be-installed-via-ssh)
+  - [Excursus: Connecting via ssh](#excursus-connecting-via-ssh)
   - [Verify Boot Mode](#verify-boot-mode)
   - [Excursus: Choosing a bootloader](#excursus-choosing-a-bootloader)
   - [Internet connection](#internet-connection)
@@ -244,27 +244,28 @@ Boot the live installation media.
 - `setfont ter-132b` # optional # set (bigger) font # `ter-122b` (maybe big enough) # `setfont -d` (double size, maybe looks kind of blurred)
   - available fonts: `ls /usr/share/kbd/consolefonts/ | less`
 
-## Excursus: Connecting to the machine to be installed via ssh
+## Excursus: Connecting via ssh
 
+If you want to connect to the machine to be installed via ssh:
 - `passwd` # set passwort for current (root) user
-&nbsp;
+  - with current ssh config of the live environment, you will not be able to connect via ssh if no password is set
+- check status of ssh service `sshd`:
+  - `systemctl status sshd`
+  - you shoud see a line with: `Active: active (running)`
+- with current ssh config of live environment, you can login via ssh without further config
+- get current IP address of the live environment
+  - `ip a`
+- ssh from your computer into the machine to be installed (you need to be in the same subnet):
+  - `ssh -o IdentitiesOnly=yes root@IP-ADDRESS` # ssh into currently booted live environment
 
+If [openSSH](https://wiki.archlinux.org/title/OpenSSH#Installation) should not be installed:
 - `pacman -Sy` # sync + refresh package database
-- `pacman -S --needed openssh rsync sudo vim nano` # install some packages
+- `pacman -S --needed openssh vim nano` # install openSSH and an editor of your choice, e.g. vim or nano, ...
 - `systemctl start sshd` # start ssh service
 - `systemctl status sshd` # check status of sshd service
-&nbsp;
-
-- `vim /etc/ssh/ssh_config` # config ssh # or use 'nano' / your prefered editor instead of 'vim'
+- `vim /etc/ssh/ssh_config` # config ssh # use your preferred / installed editor instead of 'vim'
   - uncomment: `PasswordAuthentication yes`
   - add: `PermitRootLogin yes`
-&nbsp;
-
-- `ip a` # get current IP address
-
-ssh from your computer into the machine to be installed:
-
-- `ssh -o IdentitiesOnly=yes root@IP-ADDRESS` # ssh into currently booted live environment
 
 ## Verify Boot Mode
 
