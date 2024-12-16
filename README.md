@@ -1,8 +1,15 @@
-# Arch Linux Installation Guide - A Practical Example
+# Arch Linux Installation Help With Practical Examples
 
-## Intro
+## Preface
 
-This Arch Linux installation guide may be seen as a practical example following the [Arch Wiki installation guide](https://wiki.archlinux.org/title/Installation_guide).
+The only source of truth for installation with current information is the [Arch Wiki installation guide](https://wiki.archlinux.org/title/Installation_guide).
+Any other guide, including this installation help, is generally considered obsolete and incomplete.
+
+This scribbling here may be helpful for some points where you might get stuck, even though the Acrch Wiki is very good. At least that was the case for me. And that's also the reason why I created this (mainly for myself), and to force myself to not just fly over it superficially, but to take a closer look and learn.
+
+## Description
+
+This Arch Linux installation help may be seen as a practical example following the [Arch Wiki installation guide](https://wiki.archlinux.org/title/Installation_guide).
 
 Some examples of points covered in this guide:
 
@@ -22,13 +29,14 @@ Some examples of points covered in this guide:
 - Font [installation](https://wiki.archlinux.org/title/Fonts#Installation)
 - Virtualization ([libvirt](https://wiki.archlinux.org/title/Libvirt), [Qemu/KVM](https://wiki.archlinux.org/title/QEMU))
 
-I found [mjkstra's](https://gist.github.com/mjkstra) ['Modern Arch linux installation guide'](https://gist.github.com/mjkstra/96ce7a5689d753e7a6bdd92cdc169bae) which was a pusher for creating this guide.
+I found [mjkstra's](https://gist.github.com/mjkstra) ['Modern Arch linux installation guide'](https://gist.github.com/mjkstra/96ce7a5689d753e7a6bdd92cdc169bae) which was a pusher for creating this installation help.
 But I am using snapper and [snapper-rollback (AUR)](https://aur.archlinux.org/packages/snapper-rollback) here (instead of [Timeshift](https://wiki.archlinux.org/title/Timeshift)) inspired by [mpr's video](https://www.youtube.com/watch?v=maIu1d2lAiI) because supports a more flexible btrfs subvolume layout.
 
 ## Table of Content
 
-- [Arch Linux Installation Guide - A Practical Example](#arch-linux-installation-guide-a-practical-example)
-  - [Intro](#intro)
+- [Arch Linux Installation Help With Practical Examples](#arch-linux-installation-help-with-practical-examples)
+  - [Preface](#preface)
+  - [Description](#description)
   - [Table of Content](#table-of-content)
   - [=== Pre-installation steps ===](#-pre-installation-steps-)
   - [Keyboard layout and font](#keyboard-layout-and-font)
@@ -289,7 +297,7 @@ The ones covered in this guide are:
 - GRUB: <https://wiki.archlinux.org/title/GRUB>
 
 > :memo: **Note**
-> 
+>
 > **systemd-boot** bootloader supports only UEFI boot mode.
 > **GRUB** bootloader supports UEFI and BIOS boot mode.
 >
@@ -488,20 +496,20 @@ Device     Start      End  Sectors Size Type
 > - <https://wiki.archlinux.org/title/Systemd#systemd.mount_-_mounting>
 > - <https://man.archlinux.org/man/systemd.mount.5#FSTAB>
 > - <https://man.archlinux.org/man/systemd-fstab-generator.8.en>
-> 
+>
 > I used to set the device mapper name to `cryptroot`.
 > Systemd-boot sets device mapper name to `root` by default (and seems to like the partition label to be named corresponding, if set).
 > To harmonize the naming I changed the device mapper name for `GRUB` und `systemd-boot` to `root` and the root partition label (see: Format partitions).
 >
 > Remark:
 > When using device-mapper name and root partition label `cryptroot`, systemd-boot still works, but it looks a bit ugly:
-> 
+>
 > **fstab:**
 > ```text
 > NAME                      FSTYPE      FSVER LABEL     UUID                                 FSAVAIL FSUSE% MOUNTPOINTS
 > [...]
-> └─/dev/vda3               crypto_LUKS 2               f3fcab95-75b4-471d-ab22-39f11537701d                
->   ├─/dev/mapper/cryptroot btrfs             CRYPTROOT 67f9435b-2f88-41ce-826f-928577e17519                
+> └─/dev/vda3               crypto_LUKS 2               f3fcab95-75b4-471d-ab22-39f11537701d
+>   ├─/dev/mapper/cryptroot btrfs             CRYPTROOT 67f9435b-2f88-41ce-826f-928577e17519
 >   └─/dev/mapper/root      btrfs             CRYPTROOT 67f9435b-2f88-41ce-826f-928577e17519   26.2G    18% /var/log
 >                                                                                                           /swap
 >                                                                                                           [...]
@@ -822,7 +830,7 @@ All packages above together:
 - <https://wiki.archlinux.org/title/Installation_guide#Fstab>
 
 #### Create fstab
-- `genfstab -U /mnt >> /mnt/etc/fstab` 
+- `genfstab -U /mnt >> /mnt/etc/fstab`
   - `-U`: use UUIDs
 - `cat /mnt/etc/fstab` # check
 
@@ -1115,7 +1123,7 @@ For LVM, **system** encryption or RAID, modify mkinitcpio.conf(5) (`/etc/mkinitc
 
 ### Creating new initramfs
 
-- `mkinitcpio -P` 
+- `mkinitcpio -P`
   - `-P`: process all presets contained in `/etc/mkinitcpio.conf`
 
 ## Boot loader
@@ -1134,7 +1142,7 @@ For LVM, **system** encryption or RAID, modify mkinitcpio.conf(5) (`/etc/mkinitc
 - <https://wiki.archlinux.org/title/GRUB#GRUB_rescue_and_encrypted_/boot>
 
 > :memo: **Note:** Seperate `/efi` directory from the `/boot` directory.
-> 
+>
 > Boot related files are saved in folder `/boot`, which is a subfolder of root and therefore are backed up in snapshots.
 > If we roll back then the versions of the files in `/boot` will be consistent with the remaining filsystem.
 > Which would not necessarily be the case if `/boot` is on the `/efi` partition or a seperate `/boot` partition, which are not snapshotted.
@@ -1255,23 +1263,23 @@ Now we can put together the destination path on the efi partition: `/efi/af36e29
 &nbsp;
 
 > :memo: **Access to kernel and initramfs**
-> 
+>
 > Systemd-boot needs access to the kernel and initramfs (unencrypted), which are generated by `mkinitcpio` (according to its current config) into the `/boot` folder on the encrypted root partition / root subvolume.
-> 
+>
 > This has the advantage that `/boot` is included in the snapshots of the root subvolume. So we have the kernel and initramfs available which match the status of the snapshot if we need it (e.g. if we make a rollback).
-> 
+>
 > The drawback is that we need to copy kernel and initramfs to a directory on the efi partition and config the systemd-boot loader entries to point there.
 
 > :memo: **Automated copy of kernel and initramfs**
-> 
+>
 > Copy of kernel and initramfs after every kernel update to the directory on the efi partition will be automated via systemd (see further below).
 
 > :memo: **Kernel and initramfs when rolling back to a desired snapshot**
-> 
+>
 > In this guide we will use `snapper-rollback` (AUR) for rolling back to a desired snapshot.
-> 
+>
 > When installing and configuring `snapper-rollback` at a later step (Post-install step after reboot), we will not use snapper-rollback directly, but have a `rollback` function which also copies the kernel and initramfs files matching the state of the snapshot to rollback to.
-> 
+>
 > This prevents possible problems between a newer kernel and the packages at the rolled-back state, if there were kernel updates after the snapshot we roollback to.
 
 &nbsp;
@@ -1744,7 +1752,7 @@ Config snapper-rollback:
 > If you can't boot the system anymore, you have to rollback manually via live cd.
 >
 > The following instructions can be used for orientation in such case:
-> 
+>
 > - <https://wiki.archlinux.org/title/Snapper#Restore_using_the_default_layout>
 > - <https://www.dwarmstrong.org/btrfs-snapshots-rollbacks/>
 >   - `11.` System rollback the 'Arch Way'
@@ -1768,7 +1776,7 @@ rollback() {
   local machineID=$(cat /etc/machine-id)
   local efiPartitionPath="/efi"
   local efiPartition_targetPath="${efiPartitionPath}/${machineID}/" # destination for kernel and initramfs matching the snapshot ID to rollback to
-  
+
   if [ "$#" -eq 1 ] && [ "${1}" -ge 1 ]; then # if exactly 1 parameter passed and is an integer >= 1
     local snapshotID="${1}" # Parameter 1: snapshot ID to rollback to
     local snapshot_bootFolder="${snapshotsSubvolPath}/${snapshotID}/snapshot/boot/" # source path of kernel and initramfs matching the snapshot ID to rollback to
@@ -1777,18 +1785,18 @@ rollback() {
     echo -e "Example: 'rollback 8'\nTo find the snapshot ID execute 'sudo snapper list'"
     return
   fi
- 
+
   if [[ $(command -v snapper-rollback) ]]; then
     echo "Installing 'rsync' if not available..."
     sudo pacman -S --needed --noconfirm rsync # ensure rsync is installed
-    
+
     local mode="test"
     read -rp "Do you want to just test or execute the rollback? ('e' = execute, other input = test): " mode
     local rollbackParameter=""
     local rsyncParameter=""
     if [ "${mode}" = "e" ]; then
         sudo snapper-rollback "${snapshotID}"
-        
+
         echo -e "\nCopy kernel and initramfs from snapshot ${snapshotID} to '${efiPartition_targetPath}'..."
         sudo rsync -aPhEv --delete --exclude *ucode.img "${snapshot_bootFolder}" "${efiPartition_targetPath}"
     else
@@ -1820,9 +1828,9 @@ rollback() {
   ───┼────────┼───────┼─────────────────────────────────┼──────┼─────────┼──────────────────────────────────────────────────────────────────────────┼─────────
   [...]
   7 │ pre    │       │ Sat 09 Nov 2024 06:43:04 PM CET │ root │ number  │ pacman -S --needed nano                                                  │
-  8 │ post   │     7 │ Sat 09 Nov 2024 06:43:04 PM CET │ root │ number  │ nano   
+  8 │ post   │     7 │ Sat 09 Nov 2024 06:43:04 PM CET │ root │ number  │ nano
   9 │ pre    │       │ Sat 09 Nov 2024 06:46:26 PM CET │ root │ number  │ pacman -Syu linux-zen linux-zen-headers                                  │
-  10 │ post  │      9 │ Sat 09 Nov 2024 06:46:42 PM CET │ root │ number  │ linux-zen linux-zen-headers 
+  10 │ post  │      9 │ Sat 09 Nov 2024 06:46:42 PM CET │ root │ number  │ linux-zen linux-zen-headers
   ```
 
 - Test:
@@ -1831,10 +1839,10 @@ rollback() {
 
     ```text
     Installing 'rsync' if not available...
-    [sudo] password for USER: 
+    [sudo] password for USER:
     warning: rsync-3.3.0-2 is up to date -- skipping
     there is nothing to do
-    Do you want to just test or execute the rollback? ('e' = execute, other input = test): 
+    Do you want to just test or execute the rollback? ('e' = execute, other input = test):
 
     TESTING rollback, this is gonna be just a --dry-run...
     Are you SURE you want to rollback? Type 'CONFIRM' to continue: CONFIRM
@@ -1937,21 +1945,21 @@ rollback() {
 > :memo: **Text extracts from the sources listed above:**
 > zram can be used for swap or as a general-purpose RAM disk.
 > zram creates a **compressed** block device in RAM.
-> 
+>
 > **Starting remark**: If you have enough RAM / not much swapping, you do not need to concern yourself with the configuration of zram.
-> 
+>
 > zram is particularly effective on machines that do not have much memory.
 > And / or has an advantage for devices that have flash-based memory, which has a limited lifespan due to write amplification.
-> 
+>
 > **Usage as swap**: Initially the created zram block device does not reserve or use any RAM. Only as files need or want to be swapped out, they will be **compressed** (if possible) and moved into the zram block device. The zram block device will then dynamically grow or shrink as required.
-> 
+>
 > Even when assuming that zstd only achieves a conservative 1:2 compression ratio (real world data shows a common ratio of 1:3), zram will offer the advantage of being able to store more content in RAM than without memory compression.
 > So instead of having 4 GB of RAM, with zRAM you could utilize around 8-12 GB of effective system memory.
-> 
+>
 > Compression ratio depends on the data / intended use of your machine. Data that is difficult / can not be compressed would not benefit much from zram compared to data that can be easily compressed.
-> 
+>
 > The compression and decompression time is generally negligible for any relatively modern CPU (>= ~2015).
-> 
+>
 > Using zram or zswap (as of 10/2024: zswap is the default in Arch Linux) reduces swap usage, which effectively reduces the amount of wear placed on flash-based storage and makes it last longer.
 > Using zram also results in significantly reduced I/O for Linux systems that require swapping.
 
@@ -1969,7 +1977,7 @@ To disable zswap permanently add `zswap.enabled=0` to your kernel parameters:
   - re-generate the `grub.cfg` file:
     - `sudo grub-mkconfig -o /boot/grub/grub.cfg`
 - **Systemd-boot**
-  - modify options for the loader entries config files, e.g. for 'linux' kernel: 
+  - modify options for the loader entries config files, e.g. for 'linux' kernel:
     - `sudo vim /efi/loader/entries/76b52fbb2d08452d91f404053bf782f4-arch.conf` and `/efi/loader/entries/76b52fbb2d08452d91f404053bf782f4-arch-fallback.conf`
     - append `zswap.enabled=0`
     - e.g.: `rootflags=subvol=/@ rd.luks.name=2ee5664a-fb17-4762-8e3d-d8e4b8823815=root root=/dev/mapper/root rw zswap.enabled=0`
