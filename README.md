@@ -5,7 +5,7 @@
 The only source of truth for installation with current information is the [Arch Wiki installation guide](https://wiki.archlinux.org/title/Installation_guide).
 Any other guide, including this installation help, is generally considered obsolete and incomplete.
 
-This scribbling here may be helpful for some points where you might get stuck, even though the Acrch Wiki is very good. At least that was the case for me. And that's also the reason why I created this (mainly for myself), and to force myself to not just fly over it superficially, but to take a closer look and learn.
+This scribbling here may be helpful for some points where you might get stuck, even though the Arch Wiki is very good. At least that was the case for me. And that's also the reason why I created this (mainly for myself), and to force myself to not just fly over it superficially, but to take a closer look and learn.
 
 ## Description
 
